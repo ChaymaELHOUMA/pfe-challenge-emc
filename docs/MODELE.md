@@ -1,97 +1,112 @@
 # Modèle de données
 
+Sujet 4 : réseau de médiathèques. Dernière mise à jour : 14/11/2026.
+
+## Diagramme
+
 ```mermaid
 erDiagram
-    OEUVRE ||--o{ CONTRIBUTION : "comporte"
-    AUTEUR ||--o{ CONTRIBUTION : "participe"
-    OEUVRE ||--o{ EDITION : "possède"
-    EDITION ||--o{ EXEMPLAIRE : "se décline en"
-    SITE ||--o{ EXEMPLAIRE : "abrite"
-    ADHERENT ||--o{ EMPRUNT : "effectue"
-    EXEMPLAIRE ||--o{ EMPRUNT : "est prêté"
-    ADHERENT ||--o{ RESERVATION : "effectue"
-    EDITION ||--o{ RESERVATION : "fait l'objet de"
-
-    OEUVRE {
-        int id PK
-        string titre
-        text resume
-        string langue_originale
-        int annee_creation
-    }
-
-    AUTEUR {
-        int id PK
-        string nom
-        string prenom
-        string biographie
-    }
-
-    CONTRIBUTION {
-        int id PK
-        int oeuvre_id FK
-        int auteur_id FK
-        string role "auteur, traducteur, illustrateur"
-    }
-
-    EDITION {
-        int id PK
-        int oeuvre_id FK
-        string isbn
-        string editeur
-        int annee_publication
-        int nombre_pages
-        string format
-    }
+    SITE ||--o{ EXEMPLAIRE : possede
+    SITE ||--o{ ADHERENT : rattache
+    OEUVRE ||--o{ EDITION : a
+    OEUVRE ||--o{ CONTRIBUTION : a
+    PERSONNE ||--o{ CONTRIBUTION : participe
+    EDITION ||--o{ EXEMPLAIRE : a
+    EDITION ||--o{ RESERVATION : visee
+    FORMULE ||--o{ ABONNEMENT : definit
+    ADHERENT ||--o{ ABONNEMENT : souscrit
+    ADHERENT ||--o{ PRET : emprunte
+    ADHERENT ||--o{ RESERVATION : fait
+    EXEMPLAIRE ||--o{ PRET : concerne
+    PRET ||--o{ PENALITE : genere
 
     SITE {
-        int id PK
+        int id
         string nom
         string adresse
     }
-
-    EXEMPLAIRE {
-        int id PK
-        int edition_id FK
-        int site_id FK
-        string code_barre
-        string etat "neuf, bon, abime, perdu"
-        string statut "disponible, emprunte, reserve"
+    PERSONNE {
+        int id
+        string nom
+        string prenom
     }
-
+    OEUVRE {
+        int id
+        string titre
+        string typeOeuvre
+    }
+    CONTRIBUTION {
+        int id
+        string role
+    }
+    EDITION {
+        int id
+        string isbn
+        string editeur
+        int annee
+        string langue
+        string support
+    }
+    EXEMPLAIRE {
+        int id
+        string codeBarres
+        string etat
+        string statut
+    }
+    FORMULE {
+        int id
+        string nom
+        int maxPrets
+        int dureePretJours
+        int maxProlongations
+        decimal penaliteParJour
+        decimal tarifAnnuel
+    }
     ADHERENT {
-        int id PK
+        int id
         string nom
         string prenom
         string email
-        string numero_adherent
-        date date_adhesion
-        string statut "actif, suspendu"
+        datetime dateInscription
     }
-
-    EMPRUNT {
-        int id PK
-        int exemplaire_id FK
-        int adherent_id FK
-        datetime date_emprunt
-        datetime date_retour_prevue
-        datetime date_retour_effective
-        string statut "en_cours, rendu, en_retard"
+    ABONNEMENT {
+        int id
+        date dateDebut
+        date dateFin
     }
-
+    PRET {
+        int id
+        datetime dateDebut
+        datetime dateEcheance
+        datetime dateRetour
+        int nbProlongations
+    }
     RESERVATION {
-        int id PK
-        int edition_id FK
-        int adherent_id FK
-        datetime date_reservation
-        string statut "en_attente, disponible, annulee, traitee"
+        int id
+        datetime creeLe
+        string statut
+        datetime miseDeCoteJusqua
+    }
+    PENALITE {
+        int id
+        decimal montant
+        string motif
+        datetime creeLe
+        bool reglee
     }
 ```
 
-## Explications du modèle
+## Choix de modélisation
 
-Ce modèle de données repose sur une séparation claire des responsabilités :
-- **Séparation Œuvre / Édition / Exemplaire** : L'œuvre représente le contenu intellectuel abstrait (l'histoire, le texte original). L'édition représente la publication commerciale et éditoriale (ISBN, éditeur, date, traduction). L'exemplaire représente l'objet physique matériel, localisé dans un site précis du réseau, identifié par un code-barres et caractérisé par son état d'usure.
-- **Gestion des contributeurs** : La table intermédiaire `Contribution` permet de rattacher plusieurs personnes à une œuvre en précisant leur rôle exact (auteur principal, traducteur, illustrateur, etc.).
-- **Réservations vs Emprunts** : Les réservations ciblent une édition (l'usager réserve le contenu/livre souhaité), alors que l'emprunt est directement rattaché à un exemplaire physique précis.
-- **Réseau multi-sites** : Chaque exemplaire est affecté à un `Site` du réseau de médiathèques, permettant la gestion des transferts et de la disponibilité par site.
+- **Œuvre, Édition, Exemplaire** : trois niveaux distincts. L'œuvre est le contenu intellectuel, l'édition est une publication précise (ISBN, éditeur, année, langue, support), l'exemplaire est l'objet physique prêtable, avec son code-barres, son état et son site.
+- **Contribution** : table de liaison entre Œuvre et Personne, avec un rôle (auteur, traducteur, illustrateur). Elle gère les auteurs multiples sans colonne dédiée.
+- **Formule** : stockée en base. Limites de prêts, durée, prolongations et pénalité journalière sont paramétrables, rien n'est codé en dur.
+- **Abonnement** : historique des souscriptions d'un adhérent (dates de début et de fin). La formule applicable à une date donnée est calculée par `Adherent::getFormuleActive()`.
+- **Réservation** : liée à une **édition**, pas à un exemplaire. L'adhérent veut un titre, peu importe l'exemplaire. L'ordre de la file est donné par `creeLe`.
+- **Prêt** : `dateRetour` à `null` signifie « en cours ». Le nombre de prolongations est suivi sur le prêt.
+- **Pénalité** : rattachée au prêt, avec un motif (retard, perdu, abîmé) et un état de règlement.
+- **Montants** : `decimal`, jamais de `float`.
+
+## Reste à ajouter
+
+Une entité `User` (connexion et rôles) viendra avec l'authentification et sera liée à `Adherent`.
