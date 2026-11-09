@@ -27,9 +27,16 @@ class Oeuvre
     #[ORM\OneToMany(targetEntity: Contribution::class, mappedBy: 'oeuvre', orphanRemoval: true)]
     private Collection $contributions;
 
+    /**
+     * @var Collection<int, Edition>
+     */
+    #[ORM\OneToMany(targetEntity: Edition::class, mappedBy: 'oeuvre', orphanRemoval: true)]
+    private Collection $editions;
+
     public function __construct()
     {
         $this->contributions = new ArrayCollection();
+        $this->editions = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -82,9 +89,37 @@ class Oeuvre
     public function removeContribution(Contribution $contribution): static
     {
         if ($this->contributions->removeElement($contribution)) {
-            // set the owning side to null (unless already changed)
             if ($contribution->getOeuvre() === $this) {
                 $contribution->setOeuvre(null);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection<int, Edition>
+     */
+    public function getEditions(): Collection
+    {
+        return $this->editions;
+    }
+
+    public function addEdition(Edition $edition): static
+    {
+        if (!$this->editions->contains($edition)) {
+            $this->editions->add($edition);
+            $edition->setOeuvre($this);
+        }
+
+        return $this;
+    }
+
+    public function removeEdition(Edition $edition): static
+    {
+        if ($this->editions->removeElement($edition)) {
+            if ($edition->getOeuvre() === $this) {
+                $edition->setOeuvre(null);
             }
         }
 
