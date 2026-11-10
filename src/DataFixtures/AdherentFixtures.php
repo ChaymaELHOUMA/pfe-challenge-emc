@@ -23,8 +23,8 @@ class AdherentFixtures extends Fixture implements DependentFixtureInterface
         $definitions = [
             // clé => [nom, maxPrets, durée en jours, maxProlongations, pénalité/jour, tarif annuel]
             'decouverte' => ['Découverte', 3, 14, 1, '0.50', '50.00'],
-            'standard'   => ['Standard',   5, 21, 1, '0.50', '120.00'],
-            'premium'    => ['Premium',   10, 28, 2, '0.30', '250.00'],
+            'standard'   => ['Standard', 5, 21, 1, '0.50', '120.00'],
+            'premium'    => ['Premium', 10, 28, 2, '0.30', '250.00'],
         ];
 
         $formules = [];
@@ -63,7 +63,7 @@ class AdherentFixtures extends Fixture implements DependentFixtureInterface
                 ->setNom($nom)
                 ->setEmail(strtolower($prenom . '.' . str_replace(' ', '', $nom)) . '@example.test')
                 ->setDateInscription($aujourdhui->modify('-' . (400 + $i * 15) . ' days'))
-                ->setSiteRattachement($this->getReference('site_' . ((($i % 2) + 1)), Site::class));
+                ->setSiteRattachement($this->getReference('site_' . (($i % 2) + 1), Site::class));
             $manager->persist($adherent);
             $this->addReference('adherent_' . $numero, $adherent);
 
