@@ -46,28 +46,90 @@ class Pret
         $this->dateDebut = new \DateTimeImmutable();
     }
 
-    public function getId(): ?int { return $this->id; }
+    public function __toString(): string
+    {
+        return sprintf('Prêt #%d — %s', $this->id ?? 0, $this->exemplaire);
+    }
 
-    public function getDateDebut(): ?\DateTimeImmutable { return $this->dateDebut; }
-    public function setDateDebut(\DateTimeImmutable $d): static { $this->dateDebut = $d; return $this; }
+    public function getId(): ?int
+    {
+        return $this->id;
+    }
 
-    public function getDateEcheance(): ?\DateTimeImmutable { return $this->dateEcheance; }
-    public function setDateEcheance(\DateTimeImmutable $d): static { $this->dateEcheance = $d; return $this; }
+    public function getDateDebut(): ?\DateTimeImmutable
+    {
+        return $this->dateDebut;
+    }
 
-    public function getDateRetour(): ?\DateTimeImmutable { return $this->dateRetour; }
-    public function setDateRetour(?\DateTimeImmutable $d): static { $this->dateRetour = $d; return $this; }
+    public function setDateDebut(\DateTimeImmutable $dateDebut): static
+    {
+        $this->dateDebut = $dateDebut;
+        return $this;
+    }
 
-    public function getNbProlongations(): int { return $this->nbProlongations; }
-    public function setNbProlongations(int $n): static { $this->nbProlongations = $n; return $this; }
+    public function getDateEcheance(): ?\DateTimeImmutable
+    {
+        return $this->dateEcheance;
+    }
 
-    public function getAdherent(): ?Adherent { return $this->adherent; }
-    public function setAdherent(?Adherent $a): static { $this->adherent = $a; return $this; }
+    public function setDateEcheance(\DateTimeImmutable $dateEcheance): static
+    {
+        $this->dateEcheance = $dateEcheance;
+        return $this;
+    }
 
-    public function getExemplaire(): ?Exemplaire { return $this->exemplaire; }
-    public function setExemplaire(?Exemplaire $e): static { $this->exemplaire = $e; return $this; }
+    public function getDateRetour(): ?\DateTimeImmutable
+    {
+        return $this->dateRetour;
+    }
+
+    public function setDateRetour(?\DateTimeImmutable $dateRetour): static
+    {
+        $this->dateRetour = $dateRetour;
+        return $this;
+    }
+
+    public function getNbProlongations(): int
+    {
+        return $this->nbProlongations;
+    }
+
+    public function setNbProlongations(int $nbProlongations): static
+    {
+        $this->nbProlongations = $nbProlongations;
+        return $this;
+    }
+
+    public function getAdherent(): ?Adherent
+    {
+        return $this->adherent;
+    }
+
+    public function setAdherent(?Adherent $adherent): static
+    {
+        $this->adherent = $adherent;
+        return $this;
+    }
+
+    public function getExemplaire(): ?Exemplaire
+    {
+        return $this->exemplaire;
+    }
+
+    public function setExemplaire(?Exemplaire $exemplaire): static
+    {
+        $this->exemplaire = $exemplaire;
+        return $this;
+    }
 
     /** @return Collection<int, Penalite> */
-    public function getPenalites(): Collection { return $this->penalites; }
+    public function getPenalites(): Collection
+    {
+        return $this->penalites;
+    }
 
-    public function estEnCours(): bool { return $this->dateRetour === null; }
+    public function estEnCours(): bool
+    {
+        return $this->dateRetour === null;
+    }
 }
