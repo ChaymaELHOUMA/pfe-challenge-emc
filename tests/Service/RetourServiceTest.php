@@ -4,11 +4,16 @@ namespace App\Tests\Service;
 
 use App\Entity\Abonnement;
 use App\Entity\Adherent;
+use App\Entity\Edition;
 use App\Entity\Exemplaire;
 use App\Entity\Formule;
 use App\Entity\Penalite;
 use App\Entity\Pret;
+use App\Entity\Reservation;
 use App\Exception\RegleMetierException;
+use App\Repository\ExemplaireRepository;
+use App\Repository\ReservationRepository;
+use App\Service\MiseDeCoteService;
 use App\Service\PenaliteService;
 use App\Service\RetourService;
 use Doctrine\ORM\EntityManagerInterface;
@@ -42,16 +47,27 @@ class RetourServiceTest extends TestCase
     {
         return (new Pret())
             ->setAdherent($adherent)
-            ->setExemplaire((new Exemplaire())->setStatut('emprunte'))
+            ->setExemplaire((new Exemplaire())->setEdition(new Edition())->setStatut('emprunte'))
             ->setDateDebut(new \DateTimeImmutable($debut))
             ->setDateEcheance(new \DateTimeImmutable($echeance));
     }
 
-    private function service(?EntityManagerInterface $em = null): RetourService
+    private function service(?EntityManagerInterface $em = null, array $file = []): RetourService
     {
         $em ??= $this->createStub(EntityManagerInterface::class);
         $clock = new MockClock(self::MAINTENANT);
-        return new RetourService($em, new PenaliteService($em, $clock), $clock);
+
+        $reservations = $this->createStub(ReservationRepository::class);
+        $reservations->method('findEnAttente')->willReturn($file);
+
+        $miseDeCote = new MiseDeCoteService(
+            $em,
+            $reservations,
+            $this->createStub(ExemplaireRepository::class),
+            $clock
+        );
+
+        return new RetourService($em, new PenaliteService($em, $clock), $miseDeCote, $clock);
     }
 
     public function testRetourAPtemps(): void
@@ -143,5 +159,35 @@ class RetourServiceTest extends TestCase
         } catch (RegleMetierException) {
             $this->addToAssertionCount(1);
         }
+    }
+
+    public function testLeDocumentRenduEstMisDeCotePourLePremierDeLaFile(): void
+    {
+        $suivant = (new Reservation())
+            ->setAdherent($this->adherent($this->formule('0.50')))
+            ->setStatut(Reservation::EN_ATTENTE);
+
+        $pret = $this->pret($this->adherent($this->formule('0.50')), '2026-12-01 10:00:00');
+
+        $this->service(file: [$suivant])->retourner($pret);
+
+        $this->assertSame('reserve', $pret->getExemplaire()->getStatut());
+        $this->assertSame(Reservation::DISPONIBLE, $suivant->getStatut());
+    }
+
+    public function testUnRetourEnRetardAvecFileGenereLaPenaliteEtMetDeCote(): void
+    {
+        $suivant = (new Reservation())
+            ->setAdherent($this->adherent($this->formule('0.50')))
+            ->setStatut(Reservation::EN_ATTENTE);
+
+        // Échéance le 20/11, retour le 25/11 : 5 jours à 0,50 = 2,50
+        $pret = $this->pret($this->adherent($this->formule('0.50')), '2026-11-20 10:00:00');
+
+        $penalite = $this->service(file: [$suivant])->retourner($pret);
+
+        $this->assertSame('2.50', $penalite->getMontant());
+        $this->assertSame('reserve', $pret->getExemplaire()->getStatut());
+        $this->assertSame(Reservation::DISPONIBLE, $suivant->getStatut());
     }
 }

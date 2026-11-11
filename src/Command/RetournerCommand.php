@@ -53,6 +53,9 @@ class RetournerCommand extends Command
         }
 
         $io->success('Retour enregistré.');
+        if ($pret->getExemplaire()->getStatut() === 'reserve') {
+            $io->note('Document mis de côté pour le premier de la file de réservation.');
+        }
         if ($penalite !== null) {
             $io->warning(sprintf('Pénalité de retard : %s MAD.', $penalite->getMontant()));
         }

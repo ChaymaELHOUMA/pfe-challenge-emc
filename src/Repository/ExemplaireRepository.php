@@ -2,15 +2,21 @@
 
 namespace App\Repository;
 
+use App\Entity\Edition;
 use App\Entity\Exemplaire;
+use App\Entity\Site;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * @extends ServiceEntityRepository<Exemplaire>
  */
-use App\Entity\Edition;
-use App\Entity\Site;
+class ExemplaireRepository extends ServiceEntityRepository
+{
+    public function __construct(ManagerRegistry $registry)
+    {
+        parent::__construct($registry, Exemplaire::class);
+    }
 
     /**
      * @param string[] $statuts
@@ -30,9 +36,18 @@ use App\Entity\Site;
 
         return (int) $qb->getQuery()->getSingleScalarResult();
     }
-{
-    public function __construct(ManagerRegistry $registry)
+
+    /** Un exemplaire de l'édition actuellement mis de côté (les exemplaires sont interchangeables). */
+    public function findOneReservePourEdition(Edition $edition): ?Exemplaire
     {
-        parent::__construct($registry, Exemplaire::class);
+        return $this->createQueryBuilder('x')
+            ->andWhere('x.edition = :e')
+            ->andWhere('x.statut = :s')
+            ->setParameter('e', $edition)
+            ->setParameter('s', 'reserve')
+            ->orderBy('x.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

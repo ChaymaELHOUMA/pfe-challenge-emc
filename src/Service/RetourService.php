@@ -13,6 +13,7 @@ class RetourService
     public function __construct(
         private EntityManagerInterface $em,
         private PenaliteService $penalites,
+        private MiseDeCoteService $miseDeCote,
         private ClockInterface $clock,
     ) {
     }
@@ -34,10 +35,8 @@ class RetourService
 
         $pret->setDateRetour($now);
 
-        $exemplaire = $pret->getExemplaire();
-        $exemplaire->setStatut('disponible');
-        // Commit 18 : si une réservation est en attente sur l'édition,
-        // l'exemplaire sera mis de côté ici plutôt que remis en rayon.
+        // Mis de côté pour le premier de la file, sinon remis en rayon.
+        $this->miseDeCote->affecter($pret->getExemplaire());
 
         // Formule en vigueur au début du prêt, sinon celle d'aujourd'hui.
         $formule = $pret->getAdherent()->getFormuleActive($pret->getDateDebut())
