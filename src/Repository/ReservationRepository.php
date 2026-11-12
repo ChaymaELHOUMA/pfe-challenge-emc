@@ -76,20 +76,23 @@ class ReservationRepository extends ServiceEntityRepository
     /**
      * Position d'une réservation EN_ATTENTE dans la file d'attente d'une édition.
      *
-     * 1 = premier, 2 = deuxième, …
+     * 1 = premier, 2 = deuxième, … L'ordre suit la date de création, puis l'id.
      */
     public function positionDansLaFile(Reservation $reservation): int
     {
-        return (int) $this->createQueryBuilder('r')
+        $avant = (int) $this->createQueryBuilder('r')
             ->select('COUNT(r.id)')
             ->andWhere('r.edition = :e')
             ->andWhere('r.statut = :s')
-            ->andWhere('r.creeLe <= :date')
+            ->andWhere('(r.creeLe < :c OR (r.creeLe = :c AND r.id < :id))')
             ->setParameter('e', $reservation->getEdition())
             ->setParameter('s', Reservation::EN_ATTENTE)
-            ->setParameter('date', $reservation->getCreeLe())
+            ->setParameter('c', $reservation->getCreeLe(), Types::DATETIME_IMMUTABLE)
+            ->setParameter('id', $reservation->getId())
             ->getQuery()
             ->getSingleScalarResult();
+
+        return $avant + 1;
     }
 
     /**
