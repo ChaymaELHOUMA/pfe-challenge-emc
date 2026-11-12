@@ -30,6 +30,25 @@
 - L'annulation d'une réservation déjà mise de côté libère le document de la même façon.
 - Le service ne flushe pas dans `affecter()` : c'est l'appelant qui enregistre, pour que retour, mise de côté et pénalité forment une seule opération en base.
 
+## 14/11/2026 — Pénalités, perdu et abîmé
+- **Retard** : jours calendaires entre l'échéance et le retour, multipliés par la pénalité journalière de la formule en vigueur **au début du prêt**. Le jour de l'échéance n'est pas un retard.
+- **Perdu** : forfait de 25 MAD, prêt clôturé, exemplaire au statut « perdu ». Le forfait remplace la pénalité de retard : la perte est traitée comme un cas à part, pas cumulée.
+- **Abîmé** : forfait de 5 MAD, prêt clôturé, exemplaire retiré du catalogue. Les forfaits sont des constantes de `PenaliteService`, à rendre paramétrables avec plus de temps.
+- On ne peut déclarer perdu ou abîmé qu'un prêt en cours.
+- **Limite assumée** : si le dernier exemplaire d'une édition est perdu alors qu'une file existe, les réservations restent en attente sans que rien ne les clôture. La réservation refuse déjà d'accepter une édition sans exemplaire en circulation, mais ne purge pas l'existant.
+- Les pénalités n'empêchent pas un nouvel emprunt (voir règles d'emprunt). Décision à reconsidérer avec la médiathèque.
+
+## 14/11/2026 — Prolongation
+- Refusée si : prêt clôturé, plafond de prolongations de la formule atteint, prêt en retard, réservation en attente sur l'édition.
+- Une prolongation ajoute la durée de la formule à l'**échéance en cours** (pas à la date du jour), pour que l'adhérent ne perde pas les jours restants.
+- Choix : la formule est celle en vigueur **aujourd'hui** pour la prolongation, alors que le retard utilise celle du début du prêt. La prolongation est un nouvel acte ; le retard sanctionne le contrat initial.
+
+## 14/11/2026 — Tests
+- Règles métier dans des services recevant une horloge injectée (`MockClock`) : tests unitaires sans base de données ni dépendance à la date du jour.
+- Les requêtes de la file de réservation (ordre, position, filtres) sont testées sur une vraie base MySQL de test, avec rollback après chaque test.
+- Un refus ne doit jamais écrire en base : vérifié par des tests sur `persist` et `flush`.
+- Les commandes `app:emprunter`, `app:retourner`, `app:reserver`, `app:declarer`, `app:prolonger` et `app:reservations:expirer` permettent d'exercer les services avant que l'interface existe.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
