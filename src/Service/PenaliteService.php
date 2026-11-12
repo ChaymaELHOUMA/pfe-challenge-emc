@@ -5,11 +5,15 @@ namespace App\Service;
 use App\Entity\Formule;
 use App\Entity\Penalite;
 use App\Entity\Pret;
+use App\Exception\RegleMetierException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
 class PenaliteService
 {
+    public const MONTANT_PERDU = '25.00';
+    public const MONTANT_ABIME = '5.00';
+
     public function __construct(
         private EntityManagerInterface $em,
         private ClockInterface $clock,
@@ -34,12 +38,45 @@ class PenaliteService
         $taux = (float) $formule->getPenaliteParJour();
         $montant = number_format($joursRetard * $taux, 2, '.', '');
 
+        return $this->creer($pret, $montant, 'retard');
+    }
+
+    public function declarerPerdu(Pret $pret): Penalite
+    {
+        $this->verifierPretEnCours($pret);
+
+        $pret->setDateRetour($this->clock->now());
+        $pret->getExemplaire()->setStatut('perdu');
+
+        return $this->creer($pret, self::MONTANT_PERDU, 'perdu');
+    }
+
+    public function declarerAbime(Pret $pret): Penalite
+    {
+        $this->verifierPretEnCours($pret);
+
+        $pret->setDateRetour($this->clock->now());
+        $pret->getExemplaire()->setEtat('abime');
+        $pret->getExemplaire()->setStatut('retire');
+
+        return $this->creer($pret, self::MONTANT_ABIME, 'abime');
+    }
+
+    private function verifierPretEnCours(Pret $pret): void
+    {
+        if ($pret->getDateRetour() !== null) {
+            throw new RegleMetierException('Ce prêt est déjà clôturé.');
+        }
+    }
+
+    private function creer(Pret $pret, string $montant, string $motif): Penalite
+    {
         $penalite = (new Penalite())
             ->setPret($pret)
             ->setMontant($montant)
-            ->setMotif('retard')
+            ->setMotif($motif)
             ->setReglee(false)
-            ->setCreeLe($now);
+            ->setCreeLe($this->clock->now());
 
         $this->em->persist($penalite);
         $this->em->flush();
