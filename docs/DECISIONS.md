@@ -58,6 +58,15 @@
   - Mots de passe hachés via `auto` (bcrypt/argon2id). Mot de passe de dev documenté (`password123`).
 - Déconnexion gérée nativement par le firewall (`/logout`).
 
+## 13/11/2026 — Catalogue public et recherche
+- Route `/catalogue` publique : consultation ouverte à tous sans authentification.
+- Recherche multi-critères : recherche générale plein texte (`q`) ciblant le titre, les auteurs (nom/prénom) et l'ISBN. Filtres par type d'œuvre (`livre`, `bd`, `dvd`), par langue et par disponibilité (au moins un exemplaire disponible).
+- Pagination : fixée à 10 résultats par page avec conservation des filtres actifs dans les liens de pagination.
+- Fiche de détail `/catalogue/{id}` : présente la description complète de l'édition, la liste de ses exemplaires avec localisation (site) et statut (disponible, emprunté, réservé, etc.).
+- Réservation en ligne :
+  - Pour un adhérent authentifié (`ROLE_ADHERENT`), un bouton « Réserver » permet d'enregistrer la réservation via `ReservationService` (action POST avec jeton CSRF et messages flash de confirmation ou d'erreur métier).
+  - Pour un visiteur anonyme, le bouton redirige vers la page `/login`.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?

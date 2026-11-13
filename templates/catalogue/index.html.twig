@@ -1,0 +1,141 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Catalogue - Médiathèque{% endblock %}
+
+{% block body %}
+<h1 style="font-size: 28px; margin-bottom: 24px;">Catalogue des documents</h1>
+
+<!-- Formulaire de recherche et filtres -->
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <form method="get" action="{{ path('app_catalogue') }}">
+        <div style="display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap;">
+            <div style="flex: 2; min-width: 250px;">
+                <label for="inputQ" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #475569;">Recherche globale (titre, auteur, ISBN)</label>
+                <input type="text" id="inputQ" name="q" value="{{ filters.q }}" placeholder="Ex. Le Petit Prince, Camus, 978..." style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px;">
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label for="selectType" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #475569;">Type</label>
+                <select id="selectType" name="type" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: white;">
+                    <option value="">Tous les types</option>
+                    {% for t in types %}
+                        <option value="{{ t }}" {% if filters.type == t %}selected{% endif %}>{{ t|upper }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div style="flex: 1; min-width: 150px;">
+                <label for="selectLangue" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #475569;">Langue</label>
+                <select id="selectLangue" name="langue" style="width: 100%; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: white;">
+                    <option value="">Toutes les langues</option>
+                    {% for l in langues %}
+                        <option value="{{ l }}" {% if filters.langue == l %}selected{% endif %}>{{ l|upper }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; color: #334155;">
+                <input type="checkbox" name="disponible" value="1" {% if filters.disponible %}checked{% endif %}>
+                <span>Uniquement les documents disponibles</span>
+            </label>
+
+            <div style="display: flex; gap: 8px;">
+                <a href="{{ path('app_catalogue') }}" class="btn btn-secondary">Réinitialiser</a>
+                <button type="submit" class="btn btn-primary">Rechercher</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Résultats -->
+<div style="margin-bottom: 16px; font-size: 15px; color: #64748b;">
+    <strong>{{ total }}</strong> document(s) trouvé(s)
+</div>
+
+{% if total == 0 %}
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px; text-align: center; color: #64748b;">
+        <p style="font-size: 16px; margin: 0;">Aucun document ne correspond à vos critères de recherche.</p>
+    </div>
+{% else %}
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+        {% for edition in editions %}
+            {% set totalEx = edition.exemplaires|length %}
+            {% set dispoEx = 0 %}
+            {% for ex in edition.exemplaires %}
+                {% if ex.statut == 'disponible' %}
+                    {% set dispoEx = dispoEx + 1 %}
+                {% endif %}
+            {% endfor %}
+
+            <div class="catalogue-item" style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 16px;">
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <h2 style="font-size: 18px; margin: 0; color: #0f172a;">
+                            <a href="{{ path('app_catalogue_detail', {id: edition.id}) }}" style="color: #1e3a8a; text-decoration: none;">
+                                {{ edition.oeuvre.titre }}
+                            </a>
+                        </h2>
+                        <span class="badge badge-neutral">{{ edition.oeuvre.typeOeuvre|upper }}</span>
+                        {% if edition.support != 'papier' %}
+                            <span class="badge badge-neutral">{{ edition.support|upper }}</span>
+                        {% endif %}
+                    </div>
+
+                    <div style="font-size: 14px; color: #475569; margin-bottom: 8px;">
+                        <strong>Auteurs :</strong>
+                        {% set auteurs = [] %}
+                        {% for c in edition.oeuvre.contributions %}
+                            {% set auteurs = auteurs|merge([c.personne.prenom ? (c.personne.prenom ~ ' ' ~ c.personne.nom) : c.personne.nom]) %}
+                        {% endfor %}
+                        {{ auteurs|length > 0 ? auteurs|join(', ') : 'Non précisé' }}
+                    </div>
+
+                    <div style="font-size: 13px; color: #64748b; display: flex; gap: 16px; flex-wrap: wrap;">
+                        <span><strong>Éditeur :</strong> {{ edition.editeur }} ({{ edition.annee }})</span>
+                        <span><strong>Langue :</strong> {{ edition.langue|upper }}</span>
+                        {% if edition.isbn %}
+                            <span><strong>ISBN :</strong> {{ edition.isbn }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div style="text-align: right; min-width: 180px;">
+                    <div style="margin-bottom: 10px;">
+                        {% if dispoEx > 0 %}
+                            <span class="badge badge-success">{{ dispoEx }} disponible(s) / {{ totalEx }}</span>
+                        {% else %}
+                            <span class="badge badge-warning">Non disponible ({{ totalEx }} ex.)</span>
+                        {% endif %}
+                    </div>
+                    <a href="{{ path('app_catalogue_detail', {id: edition.id}) }}" class="btn btn-secondary" style="font-size: 13px;">
+                        Voir la fiche &rarr;
+                    </a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination (10 par page) -->
+    {% if maxPages > 1 %}
+        <div class="pagination" style="display: flex; justify-content: center; gap: 6px; margin-top: 24px;">
+            {% if currentPage > 1 %}
+                <a href="{{ path('app_catalogue', filters|merge({'page': currentPage - 1})) }}" class="btn btn-secondary">
+                    &laquo; Précédent
+                </a>
+            {% endif %}
+
+            {% for p in 1..maxPages %}
+                <a href="{{ path('app_catalogue', filters|merge({'page': p})) }}" class="btn {% if p == currentPage %}btn-primary{% else %}btn-secondary{% endif %}">
+                    {{ p }}
+                </a>
+            {% endfor %}
+
+            {% if currentPage < maxPages %}
+                <a href="{{ path('app_catalogue', filters|merge({'page': currentPage + 1})) }}" class="btn btn-secondary">
+                    Suivant &raquo;
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+{% endif %}
+{% endblock %}
