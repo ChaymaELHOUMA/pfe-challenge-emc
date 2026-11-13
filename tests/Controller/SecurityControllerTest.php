@@ -86,7 +86,21 @@ class SecurityControllerTest extends WebTestCase
 
     public function testAdherentAccepteSurMonEspace(): void
     {
-        $user = $this->createAndPersistUser('adherent_' . uniqid() . '@test.com', ['ROLE_ADHERENT']);
+        // L'espace adhérent exige un Adherent lié au User
+        $adherent = (new \App\Entity\Adherent())
+            ->setNom('Test')
+            ->setPrenom('Adherent')
+            ->setEmail('adherent_' . uniqid() . '@test.com');
+        $this->em->persist($adherent);
+
+        $hasher = static::getContainer()->get(UserPasswordHasherInterface::class);
+        $user = (new User())
+            ->setEmail($adherent->getEmail())
+            ->setRoles(['ROLE_ADHERENT'])
+            ->setAdherent($adherent);
+        $user->setPassword($hasher->hashPassword($user, 'password123'));
+        $this->em->persist($user);
+        $this->em->flush();
 
         $this->client->loginUser($user);
         $this->client->request('GET', '/mon-espace');

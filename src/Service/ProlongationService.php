@@ -56,4 +56,35 @@ class ProlongationService
 
         return $pret;
     }
+
+    /**
+     * Vérifie si un prêt est actuellement éligible à une prolongation.
+     */
+    public function peutEtreProlonge(Pret $pret): bool
+    {
+        if ($pret->getDateRetour() !== null) {
+            return false;
+        }
+
+        $now = $this->clock->now();
+
+        if ($now->setTime(0, 0) > $pret->getDateEcheance()->setTime(0, 0)) {
+            return false;
+        }
+
+        $formule = $pret->getAdherent()->getFormuleActive($now);
+        if ($formule === null) {
+            return false;
+        }
+
+        if ($pret->getNbProlongations() >= $formule->getMaxProlongations()) {
+            return false;
+        }
+
+        if ($this->reservations->countEnAttentePourEdition($pret->getExemplaire()->getEdition()) > 0) {
+            return false;
+        }
+
+        return true;
+    }
 }

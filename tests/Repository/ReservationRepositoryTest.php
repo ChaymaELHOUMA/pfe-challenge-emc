@@ -20,13 +20,20 @@ class ReservationRepositoryTest extends KernelTestCase
         self::bootKernel();
         $this->em = self::getContainer()->get('doctrine')->getManager();
         $this->repo = $this->em->getRepository(Reservation::class);
-        $this->em->getConnection()->beginTransaction();
+
+        // Nettoie les données entre les tests (sans transaction imbriquée pour éviter les blocages MySQL)
+        $conn = $this->em->getConnection();
+        $conn->executeStatement('SET FOREIGN_KEY_CHECKS=0');
+        $conn->executeStatement('DELETE FROM reservation');
+        $conn->executeStatement('DELETE FROM edition');
+        $conn->executeStatement('DELETE FROM oeuvre');
+        $conn->executeStatement('DELETE FROM adherent');
+        $conn->executeStatement('SET FOREIGN_KEY_CHECKS=1');
     }
 
     protected function tearDown(): void
     {
         $this->em->clear();
-        $this->em->getConnection()->rollBack();
         parent::tearDown();
     }
 

@@ -52,4 +52,50 @@ class PretRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * Liste des prêts en cours pour un adhérent, triés par date d'échéance.
+     *
+     * @return Pret[]
+     */
+    public function findEnCoursPourAdherent(Adherent $adherent): array
+    {
+        return $this->createQueryBuilder('p')
+            ->join('p.exemplaire', 'x')
+            ->addSelect('x')
+            ->join('x.edition', 'e')
+            ->addSelect('e')
+            ->join('e.oeuvre', 'o')
+            ->addSelect('o')
+            ->andWhere('p.adherent = :a')
+            ->andWhere('p.dateRetour IS NULL')
+            ->setParameter('a', $adherent)
+            ->orderBy('p.dateEcheance', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Historique des prêts clôturés pour un adhérent, triés par date de retour décroissante.
+     *
+     * @return Pret[]
+     */
+    public function findHistoriquePourAdherent(Adherent $adherent): array
+    {
+        return $this->createQueryBuilder('p')
+            ->join('p.exemplaire', 'x')
+            ->addSelect('x')
+            ->join('x.edition', 'e')
+            ->addSelect('e')
+            ->join('e.oeuvre', 'o')
+            ->addSelect('o')
+            ->leftJoin('p.penalites', 'pen')
+            ->addSelect('pen')
+            ->andWhere('p.adherent = :a')
+            ->andWhere('p.dateRetour IS NOT NULL')
+            ->setParameter('a', $adherent)
+            ->orderBy('p.dateRetour', 'DESC')
+            ->getQuery()
+            ->getResult();
+    }
 }

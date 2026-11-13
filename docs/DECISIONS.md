@@ -67,6 +67,14 @@
   - Pour un adhérent authentifié (`ROLE_ADHERENT`), un bouton « Réserver » permet d'enregistrer la réservation via `ReservationService` (action POST avec jeton CSRF et messages flash de confirmation ou d'erreur métier).
   - Pour un visiteur anonyme, le bouton redirige vers la page `/login`.
 
+## 13/11/2026 — Espace adhérent
+- L'espace personnel `/mon-espace` affiche : prêts en cours (échéance, retard, nombre de prolongations), réservations actives avec leur position dans la file ou leur date limite de mise de côté, historique des prêts clôturés (avec pénalités éventuelles), et total des pénalités dues.
+- Un `User` sans `Adherent` lié (ex. bibliothécaire) déclenche un 403 clair s'il tente d'accéder à `/mon-espace` : sa session est valide mais il n'a pas de profil adhérent.
+- **Prolongation depuis l'espace :** le bouton « Prolonger » n'est affiché que si `ProlongationService::peutEtreProlonge()` retourne `true`. Cela évite des erreurs métier prévisibles, mais les cases limites (réservation créée entre l'affichage et la soumission) sont gérées par la `RegleMetierException` traduite en message flash `danger`.
+- **Annulation depuis l'espace :** le bouton « Annuler » est toujours affiché pour les réservations actives (`EN_ATTENTE` et `DISPONIBLE`). L'annulation d'une mise de côté libère l'exemplaire via `ReservationService::annuler()`.
+- **Contrôle de propriété :** vérification que le prêt ou la réservation appartient à l'adhérent connecté **avant** la validation CSRF, afin de retourner un 403 non une erreur CSRF.
+- **Tests :** `ReservationRepositoryTest` utilise désormais un nettoyage explicite des tables (`DELETE FROM` avec FK désactivée) au lieu de la stratégie `beginTransaction / rollBack`, qui causait des blocages MySQL lors de l'exécution séquentielle après les tests `WebTestCase`.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?

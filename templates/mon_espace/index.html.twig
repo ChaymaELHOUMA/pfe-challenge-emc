@@ -1,0 +1,209 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mon Espace - Médiathèque{% endblock %}
+
+{% block body %}
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 12px;">
+    <div>
+        <h1 style="font-size: 26px; margin: 0 0 6px 0; color: #0f172a;">Mon espace personnel</h1>
+        <p style="margin: 0; color: #64748b; font-size: 15px;">
+            Adhérent : <strong>{{ adherent.prenom }} {{ adherent.nom }}</strong> ({{ adherent.email }})
+        </p>
+    </div>
+
+    <!-- Total des pénalités dues -->
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 20px; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+        <div style="font-size: 12px; font-weight: 600; text-transform: uppercase; color: #64748b; margin-bottom: 2px;">
+            Pénalités dues
+        </div>
+        <div style="font-size: 22px; font-weight: 700; color: {% if totalPenalites > 0 %}#b91c1c{% else %}#15803d{% endif %};">
+            {{ totalPenalites }} MAD
+        </div>
+    </div>
+</div>
+
+<!-- 1. PRÊTS EN COURS -->
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h2 style="font-size: 19px; margin: 0 0 16px 0; color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">
+        Prêts en cours ({{ pretsEnCours|length }})
+    </h2>
+
+    {% if pretsEnCours|length == 0 %}
+        <p style="color: #64748b; margin: 0;">Vous n'avez aucun emprunt en cours.</p>
+    {% else %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+                        <th style="padding: 10px 12px;">Document</th>
+                        <th style="padding: 10px 12px;">Date d'emprunt</th>
+                        <th style="padding: 10px 12px;">Échéance</th>
+                        <th style="padding: 10px 12px;">État</th>
+                        <th style="padding: 10px 12px;">Prolongations</th>
+                        <th style="padding: 10px 12px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pretsEnCours %}
+                        {% set p = item.pret %}
+                        <tr class="pret-en-cours-row" style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px;">
+                                <a href="{{ path('app_catalogue_detail', {id: p.exemplaire.edition.id}) }}" style="color: #1e3a8a; font-weight: 600; text-decoration: none;">
+                                    {{ p.exemplaire.edition.oeuvre.titre }}
+                                </a>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    Exemplaire : <code>{{ p.exemplaire.codeBarres }}</code> — {{ p.exemplaire.site.nom }}
+                                </div>
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {{ p.dateDebut|date('d/m/Y') }}
+                            </td>
+                            <td style="padding: 10px 12px; font-weight: 600;">
+                                {{ p.dateEcheance|date('d/m/Y') }}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {% if item.enRetard %}
+                                    <span class="badge badge-danger">En retard ({{ item.joursRetard }} j)</span>
+                                {% else %}
+                                    <span class="badge badge-success">Dans les délais</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {{ p.nbProlongations }}
+                            </td>
+                            <td style="padding: 10px 12px; text-align: right;">
+                                {% if item.eligibleProlongation %}
+                                    <form method="post" action="{{ path('app_mon_espace_pret_prolonger', {id: p.id}) }}" style="display: inline;">
+                                        <input type="hidden" name="_token" value="{{ csrf_token('prolonger_' ~ p.id) }}">
+                                        <button type="submit" class="btn btn-primary btn-prolonger" style="font-size: 13px; padding: 6px 12px;">
+                                            Prolonger
+                                        </button>
+                                    </form>
+                                {% else %}
+                                    <span style="font-size: 12px; color: #94a3b8;">Non éligible</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 2. RÉSERVATIONS ACTIVES -->
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h2 style="font-size: 19px; margin: 0 0 16px 0; color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">
+        Réservations actives ({{ reservations|length }})
+    </h2>
+
+    {% if reservations|length == 0 %}
+        <p style="color: #64748b; margin: 0;">Vous n'avez aucune réservation active.</p>
+    {% else %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+                        <th style="padding: 10px 12px;">Document</th>
+                        <th style="padding: 10px 12px;">Date de demande</th>
+                        <th style="padding: 10px 12px;">État & Position</th>
+                        <th style="padding: 10px 12px; text-align: right;">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in reservations %}
+                        {% set r = item.reservation %}
+                        <tr class="reservation-row" style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px;">
+                                <a href="{{ path('app_catalogue_detail', {id: r.edition.id}) }}" style="color: #1e3a8a; font-weight: 600; text-decoration: none;">
+                                    {{ r.edition.oeuvre.titre }}
+                                </a>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    {{ r.edition.editeur }} ({{ r.edition.annee }}) — {{ r.edition.support|capitalize }}
+                                </div>
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {{ r.creeLe|date('d/m/Y à H:i') }}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {% if r.statut == 'disponible' %}
+                                    <span class="badge badge-success">Mis de côté</span>
+                                    <div style="font-size: 12px; color: #166534; font-weight: 600; margin-top: 2px;">
+                                        À retirer avant le {{ r.miseDeCoteJusqua|date('d/m/Y à H:i') }}
+                                    </div>
+                                {% else %}
+                                    <span class="badge badge-warning">En attente</span>
+                                    <div style="font-size: 12px; color: #92400e; margin-top: 2px;">
+                                        Position dans la file : <strong>#{{ item.position }}</strong>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td style="padding: 10px 12px; text-align: right;">
+                                <form method="post" action="{{ path('app_mon_espace_reservation_annuler', {id: r.id}) }}" style="display: inline;">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('annuler_reservation_' ~ r.id) }}">
+                                    <button type="submit" class="btn btn-secondary btn-annuler-reservation" style="font-size: 13px; padding: 6px 12px; background-color: #ef4444;" onclick="return confirm('Êtes-vous sûr de vouloir annuler cette réservation ?');">
+                                        Annuler
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+<!-- 3. HISTORIQUE DES PRÊTS CLÔTURÉS -->
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+    <h2 style="font-size: 19px; margin: 0 0 16px 0; color: #1e3a8a; border-bottom: 2px solid #f1f5f9; padding-bottom: 8px;">
+        Historique des prêts clôturés ({{ historiquePrets|length }})
+    </h2>
+
+    {% if historiquePrets|length == 0 %}
+        <p style="color: #64748b; margin: 0;">Aucun historique d'emprunt.</p>
+    {% else %}
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+                <thead>
+                    <tr style="background: #f8fafc; border-bottom: 2px solid #e2e8f0; color: #475569;">
+                        <th style="padding: 10px 12px;">Document</th>
+                        <th style="padding: 10px 12px;">Date d'emprunt</th>
+                        <th style="padding: 10px 12px;">Date de retour</th>
+                        <th style="padding: 10px 12px;">Pénalités</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in historiquePrets %}
+                        <tr class="historique-pret-row" style="border-bottom: 1px solid #f1f5f9;">
+                            <td style="padding: 10px 12px;">
+                                <strong>{{ p.exemplaire.edition.oeuvre.titre }}</strong>
+                                <div style="font-size: 12px; color: #64748b;">
+                                    <code>{{ p.exemplaire.codeBarres }}</code> — {{ p.exemplaire.edition.editeur }}
+                                </div>
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {{ p.dateDebut|date('d/m/Y') }}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {{ p.dateRetour ? p.dateRetour|date('d/m/Y') : '-' }}
+                            </td>
+                            <td style="padding: 10px 12px;">
+                                {% if p.penalites|length > 0 %}
+                                    {% for pen in p.penalites %}
+                                        <span class="badge {% if pen.reglee %}badge-neutral{% else %}badge-danger{% endif %}">
+                                            {{ pen.montant }} MAD ({{ pen.motif }}) {% if pen.reglee %}— Réglée{% else %}— Non réglée{% endif %}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span style="color: #94a3b8;">Aucune</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

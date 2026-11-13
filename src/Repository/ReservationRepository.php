@@ -74,6 +74,28 @@ class ReservationRepository extends ServiceEntityRepository
     }
 
     /**
+     * Réservations actives (EN_ATTENTE ou DISPONIBLE) pour un adhérent.
+     *
+     * @return Reservation[]
+     */
+    public function findActivesPourAdherent(Adherent $adherent): array
+    {
+        return $this->createQueryBuilder('r')
+            ->join('r.edition', 'e')
+            ->addSelect('e')
+            ->join('e.oeuvre', 'o')
+            ->addSelect('o')
+            ->andWhere('r.adherent = :a')
+            ->andWhere('r.statut IN (:s)')
+            ->setParameter('a', $adherent)
+            ->setParameter('s', [Reservation::EN_ATTENTE, Reservation::DISPONIBLE])
+            ->orderBy('r.creeLe', 'ASC')
+            ->addOrderBy('r.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Position d'une réservation EN_ATTENTE dans la file d'attente d'une édition.
      *
      * 1 = premier, 2 = deuxième, … L'ordre suit la date de création, puis l'id.
