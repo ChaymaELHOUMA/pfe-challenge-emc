@@ -35,6 +35,9 @@ class Adherent
     #[ORM\OneToMany(targetEntity: Abonnement::class, mappedBy: 'adherent', orphanRemoval: true)]
     private Collection $abonnements;
 
+    #[ORM\OneToOne(mappedBy: 'adherent', targetEntity: User::class)]
+    private ?User $user = null;
+
     public function __construct()
     {
         $this->abonnements = new ArrayCollection();
@@ -87,6 +90,9 @@ class Adherent
         }
         return null;
     }
+
+    public function getUser(): ?User { return $this->user; }
+    public function setUser(?User $user): static { $this->user = $user; return $this; }
 
     public function __toString(): string { return $this->prenom . ' ' . $this->nom; }
 }

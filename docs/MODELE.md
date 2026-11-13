@@ -14,6 +14,7 @@ erDiagram
     EDITION ||--o{ EXEMPLAIRE : a
     EDITION ||--o{ RESERVATION : visee
     FORMULE ||--o{ ABONNEMENT : definit
+    ADHERENT ||--o| USER : possede
     ADHERENT ||--o{ ABONNEMENT : souscrit
     ADHERENT ||--o{ PRET : emprunte
     ADHERENT ||--o{ RESERVATION : fait
@@ -94,6 +95,12 @@ erDiagram
         datetime creeLe
         bool reglee
     }
+    USER {
+        int id
+        string email
+        json roles
+        string password
+    }
 ```
 
 ## Choix de modélisation
@@ -105,8 +112,5 @@ erDiagram
 - **Réservation** : liée à une **édition**, pas à un exemplaire. L'adhérent veut un titre, peu importe l'exemplaire. L'ordre de la file est donné par `creeLe`.
 - **Prêt** : `dateRetour` à `null` signifie « en cours ». Le nombre de prolongations est suivi sur le prêt.
 - **Pénalité** : rattachée au prêt, avec un motif (retard, perdu, abîmé) et un état de règlement.
+- **User** : gère l'authentification (`email` unique, `roles`, mot de passe haché). Lié en OneToOne nullable à `Adherent` (un bibliothécaire n'est pas forcément adhérent ; un adhérent a un compte utilisateur pour son espace personnel).
 - **Montants** : `decimal`, jamais de `float`.
-
-## Reste à ajouter
-
-Une entité `User` (connexion et rôles) viendra avec l'authentification et sera liée à `Adherent`.

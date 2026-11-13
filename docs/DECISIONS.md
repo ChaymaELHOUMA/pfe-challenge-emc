@@ -49,6 +49,15 @@
 - Un refus ne doit jamais écrire en base : vérifié par des tests sur `persist` et `flush`.
 - Les commandes `app:emprunter`, `app:retourner`, `app:reserver`, `app:declarer`, `app:prolonger` et `app:reservations:expirer` permettent d'exercer les services avant que l'interface existe.
 
+## 13/11/2026 — Authentification et rôles
+- Entité `User` séparée de l'entité `Adherent` : un utilisateur du système n'est pas obligatoirement un adhérent (ex. bibliothécaire). Un adhérent possède un compte `User` lié en OneToOne nullable (`adherent_id`).
+- Rôles distincts : `ROLE_BIBLIOTHECAIRE` donne accès à l'administration `/admin` (EasyAdmin), `ROLE_ADHERENT` donne accès à l'espace personnel `/mon-espace`. Le catalogue `/catalogue` reste public et accessible sans authentification.
+- Sécurité :
+  - Authentification par formulaire Symfony `form_login` avec protection CSRF active (`_csrf_token`).
+  - Limitation des tentatives d'intrusion : `login_throttling` (5 tentatives max par minute, propulsé par `symfony/rate-limiter`).
+  - Mots de passe hachés via `auto` (bcrypt/argon2id). Mot de passe de dev documenté (`password123`).
+- Déconnexion gérée nativement par le firewall (`/logout`).
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
