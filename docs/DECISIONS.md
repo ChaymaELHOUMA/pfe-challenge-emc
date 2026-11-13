@@ -82,6 +82,18 @@
 - La date du jour est fournie par `ClockInterface` injecté dans le contrôleur pour permettre les tests unitaires sans mock DB.
 - Tests : `StatistiquesRepositoryTest` (KernelTestCase) avec nettoyage explicite des tables avant chaque test ; 7 tests, 16 assertions.
 
+## 13/11/2026 — Import Open Library par ISBN
+- **Normalisation et validation ISBN :** `IsbnNormalizer` valide la clé de contrôle des ISBN-10 et ISBN-13 et convertit systématiquement les ISBN-10 en ISBN-13. Tous les tirets et espaces sont nettoyés pour un stockage unifié en 13 chiffres.
+- **Client Open Library :** `OpenLibraryClient` encapsule l'API `https://openlibrary.org/isbn/{isbn}.json` avec le composant Symfony `HttpClient`. Timeout de 10s, gestion des 404 (renvoie `null`), gestion des erreurs réseau via `RegleMetierException`.
+- **Résilience aux données incomplètes :**
+  - Titre par défaut « Titre inconnu » si manquant.
+  - Éditeur par défaut « Éditeur inconnu » si la liste est vide.
+  - Auteurs : résolution des clés `/authors/OL....json` si seul l'identifiant est fourni, repli sur le champ `by_statement` si la liste d'auteurs est vide, ou « Auteur inconnu ».
+  - Année : extraction d'une année à 4 chiffres par expression régulière depuis la chaîne `publish_date`, sinon année courante.
+- **Idempotence de l'import :** `ImportLivreService` réutilise l'édition si l'ISBN existe déjà, réutilise l'œuvre si le titre existe déjà, réutilise la personne si le nom/prénom existe déjà, et ne duplique pas les contributions.
+- **Commande console :** `app:import:isbn {isbn}` avec affichage des métadonnées (titre, auteur(s), éditeur, année, ISBN) et codes de sortie standardisés (`SUCCESS` / `FAILURE`).
+- **Tests :** isolation complète via `MockHttpClient` (aucun appel réseau externe en test) couvrant le cas nominal, les réponses 404, les données partielles, les ISBN invalides et l'idempotence.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
