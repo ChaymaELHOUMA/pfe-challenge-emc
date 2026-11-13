@@ -1,0 +1,125 @@
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title %}Tableau de bord{% endblock %}
+
+{% block main %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px;">
+
+    {# Carte : prêts en cours #}
+    <div style="background: #1e3a8a; color: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.15);">
+        <div style="font-size: 38px; font-weight: 700;">{{ stats.nbPretsEnCours }}</div>
+        <div style="font-size: 13px; margin-top: 4px; opacity: .85;">Prêts en cours</div>
+    </div>
+
+    {# Carte : prêts en retard #}
+    <div style="background: {% if stats.nbPretsEnRetard > 0 %}#b91c1c{% else %}#15803d{% endif %}; color: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.15);">
+        <div style="font-size: 38px; font-weight: 700;">{{ stats.nbPretsEnRetard }}</div>
+        <div style="font-size: 13px; margin-top: 4px; opacity: .85;">Prêts en retard</div>
+    </div>
+
+    {# Carte : réservations en attente #}
+    <div style="background: #92400e; color: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.15);">
+        <div style="font-size: 38px; font-weight: 700;">{{ stats.nbReservationsEnAttente }}</div>
+        <div style="font-size: 13px; margin-top: 4px; opacity: .85;">Réservations en attente</div>
+    </div>
+
+    {# Carte : pénalités impayées #}
+    <div style="background: {% if stats.totalPenalitesImpayees > 0 %}#7c3aed{% else %}#15803d{% endif %}; color: white; border-radius: 10px; padding: 20px; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.15);">
+        <div style="font-size: 32px; font-weight: 700;">{{ stats.totalPenalitesImpayees }} MAD</div>
+        <div style="font-size: 13px; margin-top: 4px; opacity: .85;">Pénalités impayées (total)</div>
+    </div>
+
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+
+    {# Tableau : prêts en cours par site #}
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05);">
+        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 14px; color: #1e3a8a;">
+            Prêts en cours par site
+        </h2>
+        {% if stats.pretsEnCoursBySite|length == 0 %}
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Aucun prêt en cours.</p>
+        {% else %}
+            <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8fafc; color: #475569;">
+                        <th style="padding: 8px 10px; text-align: left; font-weight: 600;">Site</th>
+                        <th style="padding: 8px 10px; text-align: right; font-weight: 600;">Prêts</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stats.pretsEnCoursBySite %}
+                        <tr style="border-top: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 10px;">{{ row.site }}</td>
+                            <td style="padding: 8px 10px; text-align: right; font-weight: 700;">{{ row.nb }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+    {# Tableau : réservations en attente par édition #}
+    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05);">
+        <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 14px; color: #1e3a8a;">
+            Files d'attente par édition (top 10)
+        </h2>
+        {% if stats.reservationsEnAttenteByEdition|length == 0 %}
+            <p style="color: #94a3b8; font-size: 14px; margin: 0;">Aucune réservation en attente.</p>
+        {% else %}
+            <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background: #f8fafc; color: #475569;">
+                        <th style="padding: 8px 10px; text-align: left; font-weight: 600;">Titre / Éditeur</th>
+                        <th style="padding: 8px 10px; text-align: right; font-weight: 600;">File</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in stats.reservationsEnAttenteByEdition %}
+                        <tr style="border-top: 1px solid #f1f5f9;">
+                            <td style="padding: 8px 10px;">
+                                <strong>{{ row.titre }}</strong>
+                                <span style="color: #64748b; font-size: 12px;"> — {{ row.editeur }} ({{ row.annee }})</span>
+                            </td>
+                            <td style="padding: 8px 10px; text-align: right; font-weight: 700;">{{ row.nb }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+
+</div>
+
+{# Tableau : top 10 documents les plus empruntés #}
+<div style="background: white; border: 1px solid #e2e8f0; border-radius: 10px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.05);">
+    <h2 style="font-size: 16px; font-weight: 700; margin: 0 0 14px; color: #1e3a8a;">
+        Top 10 — Documents les plus empruntés
+    </h2>
+    {% if stats.topDixDocuments|length == 0 %}
+        <p style="color: #94a3b8; font-size: 14px; margin: 0;">Aucun prêt enregistré.</p>
+    {% else %}
+        <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+            <thead>
+                <tr style="background: #f8fafc; color: #475569;">
+                    <th style="padding: 8px 10px; text-align: left; width: 40px;">#</th>
+                    <th style="padding: 8px 10px; text-align: left;">Titre</th>
+                    <th style="padding: 8px 10px; text-align: left;">Éditeur / Année</th>
+                    <th style="padding: 8px 10px; text-align: right;">Emprunts</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in stats.topDixDocuments %}
+                    <tr style="border-top: 1px solid #f1f5f9;">
+                        <td style="padding: 8px 10px; color: #94a3b8; font-weight: 600;">{{ loop.index }}</td>
+                        <td style="padding: 8px 10px; font-weight: 600;">{{ row.titre }}</td>
+                        <td style="padding: 8px 10px; color: #64748b;">{{ row.editeur }} ({{ row.annee }})</td>
+                        <td style="padding: 8px 10px; text-align: right; font-weight: 700;">{{ row.nb }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+</div>
+{% endblock %}

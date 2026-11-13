@@ -75,6 +75,13 @@
 - **Contrôle de propriété :** vérification que le prêt ou la réservation appartient à l'adhérent connecté **avant** la validation CSRF, afin de retourner un 403 non une erreur CSRF.
 - **Tests :** `ReservationRepositoryTest` utilise désormais un nettoyage explicite des tables (`DELETE FROM` avec FK désactivée) au lieu de la stratégie `beginTransaction / rollBack`, qui causait des blocages MySQL lors de l'exécution séquentielle après les tests `WebTestCase`.
 
+## 13/11/2026 — Statistiques du back-office
+- Le tableau de bord EasyAdmin affiche : prêts en cours (total + répartition par site), prêts en retard, réservations en attente (total + top 10 par édition), top 10 des documents les plus empruntés, total des pénalités impayées en MAD.
+- Toutes les requêtes sont regroupées dans un service dédié `StatistiquesRepository` (DBAL brut, pas ORM) injecté dans `DashboardController` : les jointures sont écrites en SQL natif pour rester lisibles et éviter le N+1.
+- Choix DBAL plutôt qu'ORM : les statistiques sont des agrégats (COUNT, SUM, GROUP BY) ; DQL offre peu d'avantage ici et le SQL natif est plus direct.
+- La date du jour est fournie par `ClockInterface` injecté dans le contrôleur pour permettre les tests unitaires sans mock DB.
+- Tests : `StatistiquesRepositoryTest` (KernelTestCase) avec nettoyage explicite des tables avant chaque test ; 7 tests, 16 assertions.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
