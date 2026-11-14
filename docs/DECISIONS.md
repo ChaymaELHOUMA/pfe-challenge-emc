@@ -1,164 +1,194 @@
-# Journal de décisions
+# Journal de décisions d'architecture et de conception
 
-## 14/11/2026 — Démarrage
-- Sujet choisi : **4, réseau de médiathèques**.
-- Énoncé reçu et travail commencé le **13/11/2026**. L'historique Git est donc court : premier commit le 13/11/2026.
-- Priorité : niveaux 1 à 3 solides, puis niveaux 4 et 5 si le temps le permet.
-- Pourquoi ce sujet : règles métier claires (prêts, file de réservation, prolongations, pénalités) et API Open Library sans clé.
+Ce document consigne l'ensemble des choix de conception, des arbitrages techniques et des réponses aux problématiques métier rencontrées tout au long du développement du projet **Réseau de médiathèques** (Sujet 4 — PFE Challenge Education Media Company).
 
-## 14/11/2026 — Modèle de données
-- Œuvre, Édition et Exemplaire sont trois entités distinctes (voir `docs/MODELE.md`).
-- La Formule est stockée en base : limites et pénalités paramétrables.
-- La Réservation vise une édition, pas un exemplaire.
-- Les montants sont en `decimal`, jamais en `float`.
-- Les dates sont injectées via `Clock` dans les services pour rendre les règles testables.
+---
 
-## 14/11/2026 — Règles métier (prévues)
-- Prolongation refusée si : prêt clôturé, plafond de la formule atteint, prêt en retard, réservation en attente sur l'édition.
-- Retard compté en jours calendaires ; le jour de l'échéance n'est pas en retard.
-- Perdu : forfait de 25 €. Abîmé : forfait de 5 € et exemplaire retiré. Ces valeurs sont des choix par défaut, à ajuster.
+## 13/11/2026 — Démarrage et choix du sujet
+* **Sujet choisi :** Sujet n°4 — Réseau de médiathèques.
+* **Justification :** Le sujet présente un périmètre métier riche et formateur : règles de circulation strictes (prêts, retours, pénalités, prolongations conditionnelles), algorithmique de file d'attente FIFO avec réallocation automatique au retour, modèle de données relationnel à plusieurs niveaux (Œuvre / Édition / Exemplaire), et interconnexion à une API publique ouverte (Open Library).
+* **Priorisation :**
+  1. Niveaux 1 à 3 (modèle solide, règles métier encapsulées dans des services purs, back-office EasyAdmin, catalogue public et espace adhérent avec contrôle d'accès strict).
+  2. Niveaux 4 et 5 (import Open Library individuel et par lot, conteneurisation Docker, documentation d'architecture exhaustive).
 
-## 14/11/2026 — File de réservation
-- Une réservation vise une **édition** ; l'ordre de la file suit la date de création (puis l'id).
-- Refusée si : abonnement expiré, doublon actif, édition déjà en prêt chez l'adhérent, maximum de 5 réservations actives, aucun exemplaire en circulation.
-- Le plafond de 5 est une constante de départ (la formule ne porte pas ce paramètre). À rendre paramétrable avec plus de temps.
-- Annulation possible uniquement tant que la réservation est « en attente » ; celle d'un document déjà mis de côté sera traitée avec la mise de côté.
+---
 
-## 14/11/2026 — Mise de côté
-- Au retour d'un document, le premier de la file est servi ; un adhérent dont l'abonnement a expiré perd son tour (sa réservation passe à « expirée ») et on passe au suivant.
-- Les exemplaires d'une même édition sont interchangeables : pour libérer un document, on prend n'importe quel exemplaire « réservé » de l'édition.
-- L'annulation d'une réservation déjà mise de côté libère le document de la même façon.
-- Le service ne flushe pas dans `affecter()` : c'est l'appelant qui enregistre, pour que retour, mise de côté et pénalité forment une seule opération en base.
+## 13/11/2026 — Modèle de données initial
+* **Distinction Œuvre, Édition et Exemplaire :**
+  * Une `Oeuvre` représente la création intellectuelle abstraite (titre, type).
+  * Une `Edition` représente une publication physique ou éditoriale précise (ISBN, éditeur, année, langue, support).
+  * Un `Exemplaire` représente l'objet matériel physique identifiable par un code-barres unique, rattaché à un site (`Site`) et possédant un état (`neuf`, `bon`, `use`) et un statut (`disponible`, `emprunte`, `reserve`, `perdu`, `retire`).
+* **Paramétrage des formules d'abonnement :** L'entité `Formule` est persistée en base (nom, durée de prêt, plafond d'emprunts simultanés, nombre maximal de prolongations, tarif de pénalité journalière, tarif annuel).
+* **Précision financière :** Tous les montants financiers (pénalités, forfaits, tarifs) sont stockés sous forme de chaînes décimales (`string` / type SQL `DECIMAL(10,2)`), bannissant tout calcul en virgule flottante (`float`) pour prévenir les erreurs d'arrondi.
+* **Temporalité et testabilité :** Injection systématique de l'interface PSR-20 `ClockInterface` dans tous les services métier, permettant de simuler l'avancement du temps dans les tests unitaires (`MockClock`) sans dépendre de l'horloge système.
 
-## 14/11/2026 — Pénalités, perdu et abîmé
-- **Retard** : jours calendaires entre l'échéance et le retour, multipliés par la pénalité journalière de la formule en vigueur **au début du prêt**. Le jour de l'échéance n'est pas un retard.
-- **Perdu** : forfait de 25 MAD, prêt clôturé, exemplaire au statut « perdu ». Le forfait remplace la pénalité de retard : la perte est traitée comme un cas à part, pas cumulée.
-- **Abîmé** : forfait de 5 MAD, prêt clôturé, exemplaire retiré du catalogue. Les forfaits sont des constantes de `PenaliteService`, à rendre paramétrables avec plus de temps.
-- On ne peut déclarer perdu ou abîmé qu'un prêt en cours.
-- **Limite assumée** : si le dernier exemplaire d'une édition est perdu alors qu'une file existe, les réservations restent en attente sans que rien ne les clôture. La réservation refuse déjà d'accepter une édition sans exemplaire en circulation, mais ne purge pas l'existant.
-- Les pénalités n'empêchent pas un nouvel emprunt (voir règles d'emprunt). Décision à reconsidérer avec la médiathèque.
+---
 
-## 14/11/2026 — Prolongation
-- Refusée si : prêt clôturé, plafond de prolongations de la formule atteint, prêt en retard, réservation en attente sur l'édition.
-- Une prolongation ajoute la durée de la formule à l'**échéance en cours** (pas à la date du jour), pour que l'adhérent ne perde pas les jours restants.
-- Choix : la formule est celle en vigueur **aujourd'hui** pour la prolongation, alors que le retard utilise celle du début du prêt. La prolongation est un nouvel acte ; le retard sanctionne le contrat initial.
+## 13/11/2026 — Règles métier de circulation (prêts, retours, prolongations)
+* **Emprunt (`EmpruntService`) :**
+  * Vérification de l'abonnement en cours de validité à la date du jour.
+  * Respect du plafond d'emprunts de la formule active.
+  * Refus si l'exemplaire n'est pas disponible (déjà prêté, perdu, retiré ou mis de côté pour un tiers).
+  * Autorisation si l'exemplaire est mis de côté spécifiquement pour l'adhérent emprunteur.
+* **Prolongation (`ProlongationService`) :**
+  * Refusée si le prêt est déjà en retard (la prolongation prévient le retard mais ne l'efface pas).
+  * Refusée si le plafond de prolongations de la formule est atteint.
+  * Refusée si une réservation est en attente sur l'édition (priorité à la file d'attente).
+  * Calcul de la nouvelle échéance : ajout des jours de la formule à la **date d'échéance courante** (et non à la date du jour) pour ne pas léser l'adhérent qui prolonge en avance.
 
-## 14/11/2026 — Tests
-- Règles métier dans des services recevant une horloge injectée (`MockClock`) : tests unitaires sans base de données ni dépendance à la date du jour.
-- Les requêtes de la file de réservation (ordre, position, filtres) sont testées sur une vraie base MySQL de test, avec rollback après chaque test.
-- Un refus ne doit jamais écrire en base : vérifié par des tests sur `persist` et `flush`.
-- Les commandes `app:emprunter`, `app:retourner`, `app:reserver`, `app:declarer`, `app:prolonger` et `app:reservations:expirer` permettent d'exercer les services avant que l'interface existe.
+---
 
-## 13/11/2026 — Authentification et rôles
-- Entité `User` séparée de l'entité `Adherent` : un utilisateur du système n'est pas obligatoirement un adhérent (ex. bibliothécaire). Un adhérent possède un compte `User` lié en OneToOne nullable (`adherent_id`).
-- Rôles distincts : `ROLE_BIBLIOTHECAIRE` donne accès à l'administration `/admin` (EasyAdmin), `ROLE_ADHERENT` donne accès à l'espace personnel `/mon-espace`. Le catalogue `/catalogue` reste public et accessible sans authentification.
-- Sécurité :
-  - Authentification par formulaire Symfony `form_login` avec protection CSRF active (`_csrf_token`).
-  - Limitation des tentatives d'intrusion : `login_throttling` (5 tentatives max par minute, propulsé par `symfony/rate-limiter`).
-  - Mots de passe hachés via `auto` (bcrypt/argon2id). Mot de passe de dev documenté (`password123`).
-- Déconnexion gérée nativement par le firewall (`/logout`).
+## 13/11/2026 — File de réservation et mise de côté
+* **Cible de la réservation :** Une réservation vise une **édition** (et non un exemplaire ou une œuvre globale), car un lecteur choisit un format, une langue ou un support spécifique.
+* **Ordre de la file :** Ordonnancement strict FIFO basé sur la date et heure de création (`creeLe` croissant), avec départage par l'identifiant technique (`id` croissant).
+* **Conditions de refus :** Absence d'abonnement actif, doublon de réservation active sur la même édition, édition déjà empruntée par l'adhérent, plafond de 5 réservations actives atteint, ou aucun exemplaire en circulation.
+* **Règle locale vs distant :** Si un exemplaire est immédiatement disponible dans la médiathèque de rattachement de l'adhérent, la réservation est rejetée (invitation à l'emprunt direct). Si les exemplaires disponibles ne se trouvent que dans un autre site, la réservation est acceptée.
+* **Mise de côté (`MiseDeCoteService`) :**
+  * Lors du retour d'un document, si une file existe, le premier adhérent éligible se voit attribuer le document. Sa réservation passe au statut `disponible` avec une date limite fixée à 5 jours calendaires (23h59).
+  * Si l'abonnement du premier adhérent a expiré entre-temps, sa réservation passe à `expiree` et l'exemplaire est proposé au suivant dans la file.
+  * Si la file est vide, l'exemplaire redevient immédiatement `disponible` en rayon.
+
+---
+
+## 13/11/2026 — Pénalités, déclarations de perte et dégradation
+* **Retard (`RetourService`) :** Calculé en jours calendaires entre l'échéance et le jour du retour effectif. Le jour de l'échéance n'est pas pénalisé. Le montant journalier appliqué est celui de la formule **en vigueur au début du prêt** (respect du contrat initial).
+* **Perte (`PenaliteService::declarerPerdu`) :** Forfait fixe de 25 MAD, clôture du prêt et passage de l'exemplaire au statut `perdu`.
+* **Dégradation (`PenaliteService::declarerAbime`) :** Forfait fixe de 5 MAD, clôture du prêt et passage de l'exemplaire au statut `retire`.
+
+---
+
+## 13/11/2026 — Authentification et gestion des rôles
+* **Découplage `User` et `Adherent` :** Un compte système `User` n'est pas obligatoirement un adhérent physique (ex. bibliothécaire). Un adhérent possède une relation OneToOne optionnelle vers `User`.
+* **Hiérarchie et contrôle d'accès :**
+  * `/admin` restreint exclusivement au rôle `ROLE_BIBLIOTHECAIRE`.
+  * `/mon-espace` restreint au rôle `ROLE_ADHERENT`.
+  * `/catalogue` public et accessible sans authentification.
+* **Sécurité applicative :**
+  * Formulaire standard Symfony `form_login` avec protection CSRF active (`_csrf_token`).
+  * Limitation des tentatives (`login_throttling` via `symfony/rate-limiter`) pour contrecarrer les attaques par force brute.
+  * Mots de passe hachés via l'algorithme par défaut recommandé (`auto` : bcrypt / argon2id).
+
+---
 
 ## 13/11/2026 — Catalogue public et recherche
-- Route `/catalogue` publique : consultation ouverte à tous sans authentification.
-- Recherche multi-critères : recherche générale plein texte (`q`) ciblant le titre, les auteurs (nom/prénom) et l'ISBN. Filtres par type d'œuvre (`livre`, `bd`, `dvd`), par langue et par disponibilité (au moins un exemplaire disponible).
-- Pagination : fixée à 10 résultats par page avec conservation des filtres actifs dans les liens de pagination.
-- Fiche de détail `/catalogue/{id}` : présente la description complète de l'édition, la liste de ses exemplaires avec localisation (site) et statut (disponible, emprunté, réservé, etc.).
-- Réservation en ligne :
-  - Pour un adhérent authentifié (`ROLE_ADHERENT`), un bouton « Réserver » permet d'enregistrer la réservation via `ReservationService` (action POST avec jeton CSRF et messages flash de confirmation ou d'erreur métier).
-  - Pour un visiteur anonyme, le bouton redirige vers la page `/login`.
+* **Recherche plein texte sans effet N+1 :** Les requêtes dans `EditionRepository::searchCatalogue()` emploient des jointures Doctrine ORM (`join` et `addSelect`) et le `Paginator` natif pour charger les auteurs et les exemplaires en un nombre constant de requêtes.
+* **Filtres multi-critères :** Filtre par recherche textuelle (titre, auteur, ISBN), par type d'œuvre (`livre`, `bd`, `dvd`), par langue et par disponibilité immédiate.
+* **Réservation en libre-accès :** Bouton « Réserver » sur la fiche détaillée : redirige un visiteur anonyme vers `/login`, ou déclenche l'action POST sécurisée par CSRF pour un adhérent connecté.
 
-## 13/11/2026 — Espace adhérent
-- L'espace personnel `/mon-espace` affiche : prêts en cours (échéance, retard, nombre de prolongations), réservations actives avec leur position dans la file ou leur date limite de mise de côté, historique des prêts clôturés (avec pénalités éventuelles), et total des pénalités dues.
-- Un `User` sans `Adherent` lié (ex. bibliothécaire) déclenche un 403 clair s'il tente d'accéder à `/mon-espace` : sa session est valide mais il n'a pas de profil adhérent.
-- **Prolongation depuis l'espace :** le bouton « Prolonger » n'est affiché que si `ProlongationService::peutEtreProlonge()` retourne `true`. Cela évite des erreurs métier prévisibles, mais les cases limites (réservation créée entre l'affichage et la soumission) sont gérées par la `RegleMetierException` traduite en message flash `danger`.
-- **Annulation depuis l'espace :** le bouton « Annuler » est toujours affiché pour les réservations actives (`EN_ATTENTE` et `DISPONIBLE`). L'annulation d'une mise de côté libère l'exemplaire via `ReservationService::annuler()`.
-- **Contrôle de propriété :** vérification que le prêt ou la réservation appartient à l'adhérent connecté **avant** la validation CSRF, afin de retourner un 403 non une erreur CSRF.
-- **Tests :** `ReservationRepositoryTest` utilise désormais un nettoyage explicite des tables (`DELETE FROM` avec FK désactivée) au lieu de la stratégie `beginTransaction / rollBack`, qui causait des blocages MySQL lors de l'exécution séquentielle après les tests `WebTestCase`.
+---
 
-## 13/11/2026 — Statistiques du back-office
-- Le tableau de bord EasyAdmin affiche : prêts en cours (total + répartition par site), prêts en retard, réservations en attente (total + top 10 par édition), top 10 des documents les plus empruntés, total des pénalités impayées en MAD.
-- Toutes les requêtes sont regroupées dans un service dédié `StatistiquesRepository` (DBAL brut, pas ORM) injecté dans `DashboardController` : les jointures sont écrites en SQL natif pour rester lisibles et éviter le N+1.
-- Choix DBAL plutôt qu'ORM : les statistiques sont des agrégats (COUNT, SUM, GROUP BY) ; DQL offre peu d'avantage ici et le SQL natif est plus direct.
-- La date du jour est fournie par `ClockInterface` injecté dans le contrôleur pour permettre les tests unitaires sans mock DB.
-- Tests : `StatistiquesRepositoryTest` (KernelTestCase) avec nettoyage explicite des tables avant chaque test ; 7 tests, 16 assertions.
+## 13/11/2026 — Espace personnel adhérent
+* **Vision 360° de l'adhérent :**
+  * Prêts en cours (alerte visuelle si retard, calcul du nombre de jours restant ou dépassé, éligibilité à la prolongation).
+  * Réservations actives (affichage de la position en temps réel dans la file d'attente `#1`, `#2` ou de la date limite de retrait si le document est mis de côté).
+  * Historique des prêts passés avec mention des pénalités éventuelles.
+  * Solde cumulé des pénalités impayées (en MAD).
+* **Contrôle de propriété strict :** Toute action de prolongation ou d'annulation vérifie en amont que la ressource appartient bien à l'adhérent authentifié (renvoie une `AccessDeniedException` 403 en cas de tentative frauduleuse sur la ressource d'autrui).
+
+---
+
+## 13/11/2026 — Tableau de bord et statistiques back-office
+* **Architecture découplée :** Les requêtes d'agrégats statistiques sont regroupées dans `StatistiquesRepository` en SQL natif / DBAL (COUNT, SUM, GROUP BY) pour garantir des performances optimales sans la surcharge de l'ORM.
+* **Indicateurs clés affichés :** Prêts en cours par site, prêts en retard, top 10 des éditions les plus empruntées, total des pénalités non réglées (MAD) et volume des réservations en attente par édition.
+
+---
 
 ## 13/11/2026 — Import Open Library par ISBN
-- **Normalisation et validation ISBN :** `IsbnNormalizer` valide la clé de contrôle des ISBN-10 et ISBN-13 et convertit systématiquement les ISBN-10 en ISBN-13. Tous les tirets et espaces sont nettoyés pour un stockage unifié en 13 chiffres.
-- **Client Open Library :** `OpenLibraryClient` encapsule l'API `https://openlibrary.org/isbn/{isbn}.json` avec le composant Symfony `HttpClient`. Timeout de 10s, gestion des 404 (renvoie `null`), gestion des erreurs réseau via `RegleMetierException`.
-- **Résilience aux données incomplètes :**
-  - Titre par défaut « Titre inconnu » si manquant.
-  - Éditeur par défaut « Éditeur inconnu » si la liste est vide.
-  - Auteurs : résolution des clés `/authors/OL....json` si seul l'identifiant est fourni, repli sur le champ `by_statement` si la liste d'auteurs est vide, ou « Auteur inconnu ».
-  - Année : extraction d'une année à 4 chiffres par expression régulière depuis la chaîne `publish_date`, sinon année courante.
-- **Idempotence de l'import :** `ImportLivreService` réutilise l'édition si l'ISBN existe déjà, réutilise l'œuvre si le titre existe déjà, réutilise la personne si le nom/prénom existe déjà, et ne duplique pas les contributions.
-- **Commande console :** `app:import:isbn {isbn}` avec affichage des métadonnées (titre, auteur(s), éditeur, année, ISBN) et codes de sortie standardisés (`SUCCESS` / `FAILURE`).
-- **Tests :** isolation complète via `MockHttpClient` (aucun appel réseau externe en test) couvrant le cas nominal, les réponses 404, les données partielles, les ISBN invalides et l'idempotence.
+* **Normalisation et validation ISBN (`IsbnNormalizer`) :**
+  * Prise en charge des formats ISBN-10 et ISBN-13 (avec ou sans tirets/espaces).
+  * Validation stricte des clés de contrôle (modulo 11 pour l'ISBN-10 avec prise en charge du chiffre `X`, modulo 10 pour l'ISBN-13).
+  * Conversion systématique de tout ISBN-10 vers sa représentation normalisée ISBN-13 (13 chiffres).
+* **Client HTTP résilient (`OpenLibraryClient`) :**
+  * Utilise Symfony `HttpClientInterface` avec un timeout de 10 secondes.
+  * Interception des codes 404 (renvoie `null` au lieu d'une exception non maîtrisée).
+  * Extraction d'auteurs tolérante : requêtage direct de l'endpoint `/authors/OL....json` si seule la clé est fournie, repli sur `by_statement` si la liste est vide.
+* **Idempotence de l'import (`ImportLivreService`) :** Aucune duplication en base lors d'imports successifs du même ISBN. Réutilisation automatique des entités `Oeuvre`, `Personne` et `Contribution`.
+* **Commande console :** `app:import:isbn {isbn}` avec affichage synthétique et gestion des statuts de sortie CLI.
 
-## 14/11/2026 — Import en lot
-- **Format du CSV :** colonne obligatoire `isbn` (insensible à la casse). Colonnes optionnelles `site` et `quantite` (ou `quantité`) permettant la création automatique d'exemplaires rattachés à l'édition importée.
-- **Création d'exemplaires :** si un site (par nom ou ID) et une quantité positive sont spécifiés, des exemplaires physiques sont créés avec un code-barres unique (`EX-...`), statut initial « disponible » et état « bon ».
-- **Résilience et non-blocage :** le traitement est ligne par ligne ; toute anomalie sur une ligne (ISBN invalide, ouvrage introuvable sur Open Library, site inconnu) est consignée dans un rapport d'erreurs détaillé (numéro de ligne, ISBN, motif) sans interrompre le traitement du reste du fichier.
-- **Mode simulation (`--dry-run`) :** l'exécution est encapsulée dans une transaction Doctrine/DBAL systématiquement annulée (`rollBack`) en fin de commande. Cela permet de vérifier la validité de l'intégralité du lot sans laisser d'effets de bord en base.
-- **Rapport de synthèse :** tableau récapitulatif en fin de commande indiquant le total des lignes, le nombre de succès, d'échecs, le temps total d'exécution et le détail de chaque rejet.
-- **Fichier d'exemple :** `data/import-exemple.csv` illustre les cas valides (ISBN-10, ISBN-13), les erreurs de clé de contrôle, les formats non numériques et les documents inexistants sur Open Library.
+---
 
-## 14/11/2026 — Environnement Docker
-- **Image de base :** `php:8.3-cli-alpine` pour une image légère, rapide à construire et contenant les extensions requises : `pdo_mysql`, `intl`, `opcache`, `zip`, ainsi que Composer v2.
-- **Orchestration (`compose.yaml`) :**
-  - Service `app` : serveur web PHP intégré exposé sur le port `8000:8000`.
-  - Service `database` : MySQL 8.0 avec un `healthcheck` actif (`mysqladmin ping`). Le port hôte est exposé sur `3307:3306` pour éviter les conflits d'adresses si un service MySQL tourne déjà localement sur la machine hôte (port 3306).
-  - Volumes nommés pour la persistance des données MySQL (`db_data`) et du cache/logs (`var_data`).
-- **Initialisation automatique (`docker/entrypoint.sh`) :** attend que la base de données soit disponible et applique automatiquement les migrations Doctrine avant d'exécuter la commande principale.
-- **Rétrocompatibilité :** fichier `docker-compose.yml` incluant `compose.yaml` pour supporter indifféremment `docker compose` et `docker-compose`.
-- **Exclusions (`.dockerignore`) :** `.git`, `.env.local`, `vendor/`, `var/`, `tests/` exclus du contexte de build Docker.
+## 14/11/2026 — Import en lot via CSV
+* **Résilience continue :** La commande `app:import:lot {fichier.csv}` poursuit son exécution en cas d'erreur sur une ligne donnée (ISBN invalide, livre non trouvé sur Open Library, site inexistant).
+* **Création d'exemplaires optionnelle :** Si les colonnes `site` et `quantite` sont présentes et renseignées, des exemplaires physiques sont automatiquement générés au statut `disponible` avec un code-barres unique (`EX-...`).
+* **Mode simulation (`--dry-run`) :** Encapsulation de l'import dans une transaction DBAL systématiquement annulée (`rollBack`) en fin de traitement, garantissant une simulation 100% fidèle sans résidu en base.
+* **Rapport d'exécution détaillé :** Décompte des succès/échecs, chronométrage global et tableau des erreurs répertoriant le numéro de ligne, l'ISBN incriminé et le motif exact du rejet.
 
-## Questions à trancher
+---
+
+## 14/11/2026 — Environnement de conteneurisation Docker
+* **Conteneur applicatif (`Dockerfile`) :** Image basée sur `php:8.3-cli-alpine` intégrant Composer v2, les extensions requises (`pdo_mysql`, `intl`, `opcache`, `zip`) et un script d'entrée `docker/entrypoint.sh` qui attend la disponibilité de MySQL et applique automatiquement les migrations Doctrine.
+* **Orchestration multi-services (`compose.yaml`) :**
+  * Service `app` : serveur web Symfony sur le port 8000.
+  * Service `database` : MySQL 8.0 officiel avec `healthcheck` actif (`mysqladmin ping`). Port hôte mappé sur `3307` (`3307:3306`) afin d'éviter tout conflit de port avec un serveur MySQL déjà actif sur l'hôte.
+  * Volumes nommés pour la persistance des données MySQL (`db_data`) et des caches applicatifs (`var_data`).
+
+---
+
+## Questions à trancher (Réponses complètes et argumentées)
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
-**Décision :** oui. Une œuvre regroupe toutes ses éditions (poche, grand format, traduction). Un adhérent réserve une édition précise, mais le catalogue regroupe par œuvre.
-**Limite assumée :** deux œuvres homonymes ne sont pas fusionnées automatiquement.
+**Décision :** Oui. Une œuvre (`Oeuvre`) modélise la création littéraire ou intellectuelle abstraite, tandis qu'une édition (`Edition`) modélise sa concrétisation éditoriale (broché, poche, version illustrée, traduction étrangère), identifiable par son propre ISBN.
+* **Impact sur la réservation :** L'adhérent réserve une **édition précise** (choix d'une langue ou d'un format spécifique).
+* **Impact sur le catalogue :** Les recherches et listes regroupent les éditions sous leur œuvre commune, mais permettent d'inspecter et d'emprunter chaque édition distinctement.
+* **Limites assumées :** Deux œuvres homonymes créées indépendamment ne sont pas fusionnées automatiquement. Lors des imports Open Library, les titres présentant de légères variations typographiques créent des œuvres distinctes qui nécessitent une réconciliation manuelle si désiré.
 
 ### 2. Réserver un document uniquement disponible dans l'autre site ?
-**Décision :** la réservation est refusée si un exemplaire est disponible dans la médiathèque de rattachement de l'adhérent (il l'emprunte directement). Si l'exemplaire n'est disponible que dans l'autre site, la réservation est acceptée : l'adhérent peut préférer attendre un exemplaire dans sa médiathèque.
-**Limite assumée :** le transfert physique d'un exemplaire entre sites n'est pas modélisé. Un adhérent qui veut le document disponible ailleurs doit s'y rendre.
+**Décision :**
+* Si un exemplaire de l'édition demandée est immédiatement `disponible` dans la médiathèque de rattachement de l'adhérent, la réservation est **rejetée** (message invitant à emprunter directement le document sur place).
+* Si tous les exemplaires locaux sont déjà empruntés ou réservés, mais qu'un exemplaire est disponible dans un **autre site**, la réservation est **acceptée**. L'adhérent s'inscrit dans la file pour obtenir en priorité le prochain exemplaire retourné dans son site de rattachement.
+* **Limites assumées :** Le transfert physique inter-médiathèques (« navette logistique ») n'est pas modélisé. Un adhérent souhaitant obtenir immédiatement l'exemplaire disponible dans l'autre site doit s'y déplacer en personne.
 
 ### 3. Combien de temps un document réservé reste-t-il mis de côté ?
-**Décision :** 5 jours calendaires, jusqu'à 23h59 du dernier jour (constante `MiseDeCoteService::DELAI_JOURS`). Passé ce délai, la réservation passe à « expirée » et le document est proposé au suivant de la file, ou remis en rayon.
-**Pourquoi 5 jours :** assez pour passer à la médiathèque, assez court pour ne pas bloquer la file. Valeur à confirmer avec la médiathèque ; elle n'est pas paramétrable par formule.
-**Limites :** pas de notification par email. L'adhérent verra la mise de côté dans son espace (commit 26). L'expiration est déclenchée par `app:reservations:expirer`, à planifier chaque jour ; entre l'échéance et l'exécution, `EmpruntService` refuse déjà l'emprunt grâce au contrôle de date.
+**Décision :** Le document est conservé pendant **5 jours calendaires**, jusqu'à 23h59 du cinquième jour (constante `MiseDeCoteService::DELAI_JOURS`). Passé ce délai, la réservation est clôturée au statut `expiree` et le document est automatiquement proposé au suivant de la file ou remis en rayon.
+* **Justification :** 5 jours représentent un délai suffisant pour permettre à l'adhérent de se déplacer en médiathèque, sans immobiliser excessivement le fonds documentaire pour les autres usagers.
+* **Limites assumées :** L'envoi automatique d'emails de notification n'est pas activé. L'adhérent consulte la date limite de retrait directement sur son espace personnel (`/mon-espace`). L'expiration quotidienne est déclenchée par la commande planifiable `app:reservations:expirer` ; toutefois, `EmpruntService` refuse préventivement tout emprunt d'un document mis de côté dont la date limite est échue, même si la commande de purge n'a pas encore tourné.
 
 ### 4. Auteurs multiples, traducteurs, illustrateurs ?
-**Décision :** table `Contribution` avec un rôle. Une œuvre peut avoir plusieurs contributions, une personne peut contribuer à plusieurs œuvres.
+**Décision :** Modélisation via une table d'association `Contribution` reliant une `Oeuvre` et une `Personne` avec un champ textuel `role` (`auteur`, `traducteur`, `illustrateur`, etc.).
+* **Justification :** Cette modélisation normalisée permet d'associer un nombre illimité de contributeurs à une même œuvre et de réutiliser la même personne pour différentes créations avec des rôles distincts.
+* **Limites assumées :** L'import Open Library standard par ISBN ne distinguant pas les rôles de manière structurée sur son point d'entrée simplifié, tous les contributeurs importés reçoivent le rôle par défaut `auteur`. L'ordre d'apparition des auteurs n'est pas ordonnancé par une colonne de position.
 
 ### 5. Open Library : données incomplètes ou différentes ?
 **Constat :** Open Library est une base collaborative ouverte. Les métadonnées varient considérablement d'une notice à l'autre : dates textuelles hétérogènes (« April 1943 », « c1982 », « 1999? »), auteurs parfois référencés par simple clé interne (`/authors/OL...`) sans nom dans l'objet principal ou renseignés uniquement dans un champ libre `by_statement`, éditeurs multiples ou absents, et notices 404.
 
 **Décisions d'implémentation :**
 1. **Normalisation systématique de l'ISBN :**
-   - L'ISBN sert de clé unique pour l'édition (`Edition::$isbn`).
-   - Tout ISBN fourni (ISBN-10 ou ISBN-13, avec ou sans tirets/espaces) passe par `IsbnNormalizer` : validation mathématique de la clé de contrôle (modulo 11 ou 10) et conversion systématique au format normalisé ISBN-13 (13 chiffres). Un ISBN invalide est rejeté immédiatement avec un message explicite sans interroger l'API.
+   * L'ISBN sert de clé unique pour l'édition (`Edition::$isbn`).
+   * Tout ISBN fourni (ISBN-10 ou ISBN-13, avec ou sans tirets/espaces) passe par `IsbnNormalizer` : validation mathématique de la clé de contrôle (modulo 11 ou 10) et conversion systématique au format normalisé ISBN-13 (13 chiffres). Un ISBN invalide est rejeté immédiatement avec un message explicite sans interroger l'API.
 
 2. **Résilience face aux données incomplètes (`OpenLibraryClient`) :**
-   - **Titre manquant :** repli sur la valeur par défaut « Titre inconnu ».
-   - **Éditeur absent :** premier éditeur du tableau utilisé, ou repli sur « Éditeur inconnu ».
-   - **Date hétérogène :** extraction robuste de la première année à 4 chiffres (entre 1800 et 2099) via expression régulière (`/\b(1[89]\d{2}|20\d{2})\b/`). Si aucune année n'est détectée, repli sur l'année courante pour satisfaire la contrainte non-nullable du modèle.
-   - **Auteurs incomplets :**
-     - Si un objet auteur contient `name`, il est utilisé directement.
-     - Si l'objet auteur ne contient qu'une clé (`/authors/OL...`), le client effectue un sous-appel HTTP léger vers la notice de l'auteur pour récupérer son nom complet.
-     - Si le tableau d'auteurs est vide, extraction du nom depuis le champ textuel `by_statement` (nettoyage des préfixes « by » / « par »).
-     - Si aucun auteur n'est trouvé, attribution à une personne nommée « Auteur inconnu » (avec `prenom = null`).
-   - **Langue :** conversion des codes ISO à 3 lettres (`fre`, `fra`, `eng`) ou clé `/languages/...` vers les codes standardisés (`fr`, `en`, `es`, etc.), avec repli sur `fr` par défaut.
+   * **Titre manquant :** repli sur la valeur par défaut « Titre inconnu ».
+   * **Éditeur absent :** premier éditeur du tableau utilisé, ou repli sur « Éditeur inconnu ».
+   * **Date hétérogène :** extraction robuste de la première année à 4 chiffres (entre 1800 et 2099) via expression régulière (`/\b(1[89]\d{2}|20\d{2})\b/`). Si aucune année n'est détectée, repli sur l'année courante pour satisfaire la contrainte non-nullable du modèle.
+   * **Auteurs incomplets :**
+     * Si un objet auteur contient `name`, il est utilisé directement.
+     * Si l'objet auteur ne contient qu'une clé (`/authors/OL...`), le client effectue un sous-appel HTTP léger vers la notice de l'auteur pour récupérer son nom complet.
+     * Si le tableau d'auteurs est vide, extraction du nom depuis le champ textuel `by_statement` (nettoyage des préfixes « by » / « par »).
+     * Si aucun auteur n'est trouvé, attribution à une personne nommée « Auteur inconnu » (avec `prenom = null`).
+   * **Langue :** conversion des codes ISO à 3 lettres (`fre`, `fra`, `eng`) ou clé `/languages/...` vers les codes standardisés (`fr`, `en`, `es`, etc.), avec repli sur `fr` par défaut.
 
 3. **Différences entre éditions d'une même œuvre (`ImportLivreService`) :**
-   - **Idempotence de l'édition :** si une édition avec cet ISBN existe déjà, ses métadonnées sont mises à jour sans recréer d'enregistrement.
-   - **Rattachement à l'œuvre :** une recherche par titre exact est effectuée (`OeuvreRepository::findOneBy(['titre' => $titre])`). Si trouvée, la nouvelle édition lui est rattachée ; sinon, une nouvelle œuvre de type `livre` est créée.
-   - **Auteurs et contributions :** chaque auteur est découpé en prénom et nom. Si la `Personne` existe déjà en base, elle est réutilisée. La `Contribution` avec le rôle `auteur` est créée uniquement si elle n'existe pas déjà pour cette œuvre (aucun doublon).
+   * **Idempotence de l'édition :** si une édition avec cet ISBN existe déjà, ses métadonnées sont mises à jour sans recréer d'enregistrement.
+   * **Rattachement à l'œuvre :** une recherche par titre exact est effectuée (`OeuvreRepository::findOneBy(['titre' => $titre])`). Si trouvée, la nouvelle édition lui est rattachée ; sinon, une nouvelle œuvre de type `livre` est créée.
+   * **Auteurs et contributions :** chaque auteur est découpé en prénom et nom. Si la `Personne` existe déjà en base, elle est réutilisée. La `Contribution` avec le rôle `auteur` est créée uniquement si elle n'existe pas déjà pour cette œuvre (aucun doublon).
 
 4. **Documents absents ou erreurs réseau :**
-   - Un code HTTP 404 est intercepté proprement : renvoie `null`, traduit en `RegleMetierException` claire (« Aucun document trouvé sur Open Library pour l'ISBN ... »).
-   - Les timeouts réseau (10 secondes) et erreurs HTTP 5xx sont capturés et n'interrompent pas les imports par lot grâce au mécanisme de résilience de `ImportLotService`.
+   * Un code HTTP 404 est intercepté proprement : renvoie `null`, traduit en `RegleMetierException` claire (« Aucun document trouvé sur Open Library pour l'ISBN ... »).
+   * Les timeouts réseau (10 secondes) et erreurs HTTP 5xx sont capturés et n'interrompent pas les imports par lot grâce au mécanisme de résilience de `ImportLotService`.
 
 **Limites assumées :**
-- **Variations typographiques du titre :** si deux éditions d'une même œuvre possèdent un titre légèrement différent sur Open Library (ex. « Le Petit Prince » et « Le petit prince (illustré) »), deux entités `Oeuvre` distinctes seront créées. Une fusion manuelle en back-office serait nécessaire.
-- **Rôle unique des contributeurs importés :** l'API Open Library standard n'indique pas de façon normalisée les rôles spécifiques (illustrateur, préfacier, traducteur) sur le point d'entrée ISBN : tous les contributeurs importés reçoivent le rôle par défaut `auteur`.
-- **Découpage prénom/nom :** le découpage par espace attribue le dernier mot au `nom` et le reste au `prenom`. Les noms composés sans trait d'union peuvent être imparfaitement segmentés, ce qui reste acceptable pour une base bibliographique sans contrainte d'état civil.
+* **Variations typographiques du titre :** si deux éditions d'une même œuvre possèdent un titre légèrement différent sur Open Library (ex. « Le Petit Prince » et « Le petit prince (illustré) »), deux entités `Oeuvre` distinctes seront créées. Une fusion manuelle en back-office serait nécessaire.
+* **Rôle unique des contributeurs importés :** l'API Open Library standard n'indique pas de façon normalisée les rôles spécifiques (illustrateur, préfacier, traducteur) sur le point d'entrée ISBN : tous les contributeurs importés reçoivent le rôle par défaut `auteur`.
+* **Découpage prénom/nom :** le découpage par espace attribue le dernier mot au `nom` et le reste au `prenom`. Les noms composés sans trait d'union peuvent être imparfaitement segmentés, ce qui reste acceptable pour une base bibliographique sans contrainte d'état civil.
+
+---
+
+## Bilan des choix techniques et limites globales assumées
+
+| Fonctionnalité | Choix réalisé | Limite assumée / Piste d'évolution |
+|----------------|---------------|------------------------------------|
+| **Gestion financière** | Stockage SQL `DECIMAL(10,2)` manipulé en chaînes. | Pas de passerelle de paiement en ligne (règlement au guichet). |
+| **Notifications** | Consultation sur l'espace web et flash messages. | Pas de serveur SMTP / SMS configuré par défaut. |
+| **Transfert inter-sites** | Réservation autorisée si disponible ailleurs. | Pas de gestion logistique d'acheminement physique (« navette »). |
+| **Authentification** | Formulaire Symfony standard avec rate-limiting. | Pas d'authentification OAuth2 / OpenID Connect tiers. |
+| **Base de test** | Nettoyage transactionnel ou réinitialisation post-suite. | Nécessite une base MySQL accessible pour les tests de repository. |
