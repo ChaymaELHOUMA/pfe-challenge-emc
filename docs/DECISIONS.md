@@ -102,6 +102,16 @@
 - **Rapport de synthèse :** tableau récapitulatif en fin de commande indiquant le total des lignes, le nombre de succès, d'échecs, le temps total d'exécution et le détail de chaque rejet.
 - **Fichier d'exemple :** `data/import-exemple.csv` illustre les cas valides (ISBN-10, ISBN-13), les erreurs de clé de contrôle, les formats non numériques et les documents inexistants sur Open Library.
 
+## 14/11/2026 — Environnement Docker
+- **Image de base :** `php:8.3-cli-alpine` pour une image légère, rapide à construire et contenant les extensions requises : `pdo_mysql`, `intl`, `opcache`, `zip`, ainsi que Composer v2.
+- **Orchestration (`compose.yaml`) :**
+  - Service `app` : serveur web PHP intégré exposé sur le port `8000:8000`.
+  - Service `database` : MySQL 8.0 avec un `healthcheck` actif (`mysqladmin ping`). Le port hôte est exposé sur `3307:3306` pour éviter les conflits d'adresses si un service MySQL tourne déjà localement sur la machine hôte (port 3306).
+  - Volumes nommés pour la persistance des données MySQL (`db_data`) et du cache/logs (`var_data`).
+- **Initialisation automatique (`docker/entrypoint.sh`) :** attend que la base de données soit disponible et applique automatiquement les migrations Doctrine avant d'exécuter la commande principale.
+- **Rétrocompatibilité :** fichier `docker-compose.yml` incluant `compose.yaml` pour supporter indifféremment `docker compose` et `docker-compose`.
+- **Exclusions (`.dockerignore`) :** `.git`, `.env.local`, `vendor/`, `var/`, `tests/` exclus du contexte de build Docker.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?

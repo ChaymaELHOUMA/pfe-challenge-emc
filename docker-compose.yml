@@ -1,0 +1,3 @@
+# Alias vers compose.yaml pour compatibilité avec les versions antérieures de Docker Compose
+include:
+  - compose.yaml

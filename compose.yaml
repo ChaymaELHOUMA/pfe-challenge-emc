@@ -1,0 +1,43 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mediatheque_app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: dev
+      APP_SECRET: f8309b68a7f14ad1e29e92d057774d0a
+      DATABASE_URL: mysql://mediatheque:mediatheque@database:3306/mediatheque?serverVersion=8.0&charset=utf8mb4
+    volumes:
+      - .:/var/www/html
+      - var_data:/var/www/html/var
+    depends_on:
+      database:
+        condition: service_healthy
+
+  database:
+    image: mysql:8.0
+    container_name: mediatheque_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: mediatheque
+      MYSQL_USER: mediatheque
+      MYSQL_PASSWORD: mediatheque
+    ports:
+      - "3307:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  db_data:
+  var_data:
