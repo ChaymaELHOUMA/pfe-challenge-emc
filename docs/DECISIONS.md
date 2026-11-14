@@ -94,6 +94,14 @@
 - **Commande console :** `app:import:isbn {isbn}` avec affichage des métadonnées (titre, auteur(s), éditeur, année, ISBN) et codes de sortie standardisés (`SUCCESS` / `FAILURE`).
 - **Tests :** isolation complète via `MockHttpClient` (aucun appel réseau externe en test) couvrant le cas nominal, les réponses 404, les données partielles, les ISBN invalides et l'idempotence.
 
+## 14/11/2026 — Import en lot
+- **Format du CSV :** colonne obligatoire `isbn` (insensible à la casse). Colonnes optionnelles `site` et `quantite` (ou `quantité`) permettant la création automatique d'exemplaires rattachés à l'édition importée.
+- **Création d'exemplaires :** si un site (par nom ou ID) et une quantité positive sont spécifiés, des exemplaires physiques sont créés avec un code-barres unique (`EX-...`), statut initial « disponible » et état « bon ».
+- **Résilience et non-blocage :** le traitement est ligne par ligne ; toute anomalie sur une ligne (ISBN invalide, ouvrage introuvable sur Open Library, site inconnu) est consignée dans un rapport d'erreurs détaillé (numéro de ligne, ISBN, motif) sans interrompre le traitement du reste du fichier.
+- **Mode simulation (`--dry-run`) :** l'exécution est encapsulée dans une transaction Doctrine/DBAL systématiquement annulée (`rollBack`) en fin de commande. Cela permet de vérifier la validité de l'intégralité du lot sans laisser d'effets de bord en base.
+- **Rapport de synthèse :** tableau récapitulatif en fin de commande indiquant le total des lignes, le nombre de succès, d'échecs, le temps total d'exécution et le détail de chaque rejet.
+- **Fichier d'exemple :** `data/import-exemple.csv` illustre les cas valides (ISBN-10, ISBN-13), les erreurs de clé de contrôle, les formats non numériques et les documents inexistants sur Open Library.
+
 ## Questions à trancher
 
 ### 1. Deux éditions d'un même roman sont-elles la même œuvre ?
