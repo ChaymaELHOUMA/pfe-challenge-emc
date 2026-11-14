@@ -42,6 +42,19 @@ class StatistiquesRepositoryTest extends KernelTestCase
         parent::tearDown();
     }
 
+    public static function tearDownAfterClass(): void
+    {
+        $kernel = self::bootKernel();
+        $application = new \Symfony\Bundle\FrameworkBundle\Console\Application($kernel);
+        $application->setAutoExit(false);
+        $application->run(new \Symfony\Component\Console\Input\ArrayInput([
+            'command' => 'doctrine:fixtures:load',
+            '--no-interaction' => true,
+            '--env' => 'test',
+        ]), new \Symfony\Component\Console\Output\NullOutput());
+        parent::tearDownAfterClass();
+    }
+
     // ─── Fabriques ───────────────────────────────────────────────────────────
 
     private function site(string $nom = 'Site Test'): Site

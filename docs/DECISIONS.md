@@ -121,4 +121,34 @@
 **Décision :** table `Contribution` avec un rôle. Une œuvre peut avoir plusieurs contributions, une personne peut contribuer à plusieurs œuvres.
 
 ### 5. Open Library : données incomplètes ou différentes ?
-*À trancher si le niveau 4 est réalisé.*
+**Constat :** Open Library est une base collaborative ouverte. Les métadonnées varient considérablement d'une notice à l'autre : dates textuelles hétérogènes (« April 1943 », « c1982 », « 1999? »), auteurs parfois référencés par simple clé interne (`/authors/OL...`) sans nom dans l'objet principal ou renseignés uniquement dans un champ libre `by_statement`, éditeurs multiples ou absents, et notices 404.
+
+**Décisions d'implémentation :**
+1. **Normalisation systématique de l'ISBN :**
+   - L'ISBN sert de clé unique pour l'édition (`Edition::$isbn`).
+   - Tout ISBN fourni (ISBN-10 ou ISBN-13, avec ou sans tirets/espaces) passe par `IsbnNormalizer` : validation mathématique de la clé de contrôle (modulo 11 ou 10) et conversion systématique au format normalisé ISBN-13 (13 chiffres). Un ISBN invalide est rejeté immédiatement avec un message explicite sans interroger l'API.
+
+2. **Résilience face aux données incomplètes (`OpenLibraryClient`) :**
+   - **Titre manquant :** repli sur la valeur par défaut « Titre inconnu ».
+   - **Éditeur absent :** premier éditeur du tableau utilisé, ou repli sur « Éditeur inconnu ».
+   - **Date hétérogène :** extraction robuste de la première année à 4 chiffres (entre 1800 et 2099) via expression régulière (`/\b(1[89]\d{2}|20\d{2})\b/`). Si aucune année n'est détectée, repli sur l'année courante pour satisfaire la contrainte non-nullable du modèle.
+   - **Auteurs incomplets :**
+     - Si un objet auteur contient `name`, il est utilisé directement.
+     - Si l'objet auteur ne contient qu'une clé (`/authors/OL...`), le client effectue un sous-appel HTTP léger vers la notice de l'auteur pour récupérer son nom complet.
+     - Si le tableau d'auteurs est vide, extraction du nom depuis le champ textuel `by_statement` (nettoyage des préfixes « by » / « par »).
+     - Si aucun auteur n'est trouvé, attribution à une personne nommée « Auteur inconnu » (avec `prenom = null`).
+   - **Langue :** conversion des codes ISO à 3 lettres (`fre`, `fra`, `eng`) ou clé `/languages/...` vers les codes standardisés (`fr`, `en`, `es`, etc.), avec repli sur `fr` par défaut.
+
+3. **Différences entre éditions d'une même œuvre (`ImportLivreService`) :**
+   - **Idempotence de l'édition :** si une édition avec cet ISBN existe déjà, ses métadonnées sont mises à jour sans recréer d'enregistrement.
+   - **Rattachement à l'œuvre :** une recherche par titre exact est effectuée (`OeuvreRepository::findOneBy(['titre' => $titre])`). Si trouvée, la nouvelle édition lui est rattachée ; sinon, une nouvelle œuvre de type `livre` est créée.
+   - **Auteurs et contributions :** chaque auteur est découpé en prénom et nom. Si la `Personne` existe déjà en base, elle est réutilisée. La `Contribution` avec le rôle `auteur` est créée uniquement si elle n'existe pas déjà pour cette œuvre (aucun doublon).
+
+4. **Documents absents ou erreurs réseau :**
+   - Un code HTTP 404 est intercepté proprement : renvoie `null`, traduit en `RegleMetierException` claire (« Aucun document trouvé sur Open Library pour l'ISBN ... »).
+   - Les timeouts réseau (10 secondes) et erreurs HTTP 5xx sont capturés et n'interrompent pas les imports par lot grâce au mécanisme de résilience de `ImportLotService`.
+
+**Limites assumées :**
+- **Variations typographiques du titre :** si deux éditions d'une même œuvre possèdent un titre légèrement différent sur Open Library (ex. « Le Petit Prince » et « Le petit prince (illustré) »), deux entités `Oeuvre` distinctes seront créées. Une fusion manuelle en back-office serait nécessaire.
+- **Rôle unique des contributeurs importés :** l'API Open Library standard n'indique pas de façon normalisée les rôles spécifiques (illustrateur, préfacier, traducteur) sur le point d'entrée ISBN : tous les contributeurs importés reçoivent le rôle par défaut `auteur`.
+- **Découpage prénom/nom :** le découpage par espace attribue le dernier mot au `nom` et le reste au `prenom`. Les noms composés sans trait d'union peuvent être imparfaitement segmentés, ce qui reste acceptable pour une base bibliographique sans contrainte d'état civil.
