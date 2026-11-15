@@ -30,6 +30,9 @@ class Edition
     #[ORM\Column(length: 50)]
     private ?string $support = null;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $couvertureUrl = null;
+
     #[ORM\ManyToOne(inversedBy: 'editions')]
     #[ORM\JoinColumn(nullable: false)]
     private ?Oeuvre $oeuvre = null;
@@ -148,6 +151,18 @@ class Edition
                 $exemplaire->setEdition(null);
             }
         }
+
+        return $this;
+    }
+
+    public function getCouvertureUrl(): ?string
+    {
+        return $this->couvertureUrl;
+    }
+
+    public function setCouvertureUrl(?string $couvertureUrl): static
+    {
+        $this->couvertureUrl = $couvertureUrl;
 
         return $this;
     }

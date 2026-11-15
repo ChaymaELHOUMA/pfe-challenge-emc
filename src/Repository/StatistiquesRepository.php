@@ -136,4 +136,56 @@ class StatistiquesRepository
             "SELECT COUNT(id) FROM reservation WHERE statut = 'en_attente'"
         )->fetchOne();
     }
+
+    /**
+     * Taux de rotation global de la collection :
+     * ratio entre le nombre total d'emprunts enregistrés et le volume d'exemplaires en stock.
+     */
+    public function tauxRotation(): float
+    {
+        $totalPrets = (int) $this->connection->executeQuery(
+            'SELECT COUNT(id) FROM pret'
+        )->fetchOne();
+
+        $totalExemplaires = (int) $this->connection->executeQuery(
+            'SELECT COUNT(id) FROM exemplaire'
+        )->fetchOne();
+
+        if ($totalExemplaires === 0) {
+            return 0.0;
+        }
+
+        return round($totalPrets / $totalExemplaires, 2);
+    }
+
+    /**
+     * Documents / éditions n'ayant jamais fait l'objet d'aucun prêt (top 10).
+     *
+     * @return array<array{titre: string, editeur: string, annee: int, isbn: string}>
+     */
+    public function documentsJamaisEmpruntes(): array
+    {
+        $rows = $this->connection->executeQuery(
+            'SELECT o.titre, e.editeur, e.annee, e.isbn
+             FROM edition e
+             JOIN oeuvre o ON o.id = e.oeuvre_id
+             WHERE e.id NOT IN (
+                 SELECT DISTINCT x.edition_id
+                 FROM exemplaire x
+                 JOIN pret p ON p.exemplaire_id = x.id
+             )
+             ORDER BY o.titre ASC
+             LIMIT 10'
+        )->fetchAllAssociative();
+
+        return array_map(
+            fn(array $r) => [
+                'titre'   => $r['titre'],
+                'editeur' => $r['editeur'],
+                'annee'   => (int) $r['annee'],
+                'isbn'    => (string) $r['isbn'],
+            ],
+            $rows
+        );
+    }
 }

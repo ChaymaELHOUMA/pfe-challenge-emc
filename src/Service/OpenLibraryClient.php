@@ -162,6 +162,15 @@ class OpenLibraryClient
             $auteurs[] = 'Auteur inconnu';
         }
 
+        // 6. Couverture (Open Library Covers API)
+        $couverture = null;
+        if (!empty($data['covers']) && is_array($data['covers'])) {
+            $coverId = reset($data['covers']);
+            if (is_numeric($coverId) && (int) $coverId > 0) {
+                $couverture = sprintf('https://covers.openlibrary.org/b/id/%d-M.jpg', (int) $coverId);
+            }
+        }
+
         return [
             'isbn' => $isbn,
             'titre' => $titre,
@@ -169,6 +178,7 @@ class OpenLibraryClient
             'annee' => $annee,
             'langue' => $langue,
             'support' => 'papier',
+            'couverture' => $couverture,
             'auteurs' => array_values(array_unique($auteurs)),
         ];
     }

@@ -9,6 +9,7 @@ use App\Entity\Exemplaire;
 use App\Entity\Formule;
 use App\Entity\Reservation;
 use App\Exception\RegleMetierException;
+use App\Repository\PenaliteRepository;
 use App\Repository\PretRepository;
 use App\Repository\ReservationRepository;
 use App\Service\EmpruntService;
@@ -51,18 +52,25 @@ class EmpruntServiceTest extends TestCase
         int $pretsEnCours = 0,
         ?Reservation $miseDeCote = null,
         ?EntityManagerInterface $em = null,
+        int $pretsEnRetard = 0,
+        string $penalitesDues = '0.00',
     ): EmpruntService {
         $prets = $this->createStub(PretRepository::class);
         $prets->method('countEnCoursPourAdherent')->willReturn($pretsEnCours);
+        $prets->method('countEnRetardPourAdherent')->willReturn($pretsEnRetard);
 
         $reservations = $this->createStub(ReservationRepository::class);
         $reservations->method('findMiseDeCote')->willReturn($miseDeCote);
+
+        $penalites = $this->createStub(PenaliteRepository::class);
+        $penalites->method('totalDuesPourAdherent')->willReturn($penalitesDues);
 
         return new EmpruntService(
             $em ?? $this->createStub(EntityManagerInterface::class),
             $prets,
             $reservations,
-            new MockClock(self::MAINTENANT)
+            new MockClock(self::MAINTENANT),
+            $penalites
         );
     }
 
@@ -224,5 +232,21 @@ class EmpruntServiceTest extends TestCase
         } catch (RegleMetierException) {
             $this->assertSame('emprunte', $exemplaire->getStatut());
         }
+    }
+
+    public function testRefuseSiPretEnRetard(): void
+    {
+        $this->expectException(RegleMetierException::class);
+        $this->expectExceptionMessage('Emprunt refusé : vous avez des prêts en retard non restitués.');
+
+        $this->service(pretsEnRetard: 1)->emprunter($this->adherent(), $this->exemplaire());
+    }
+
+    public function testRefuseSiPenalitesImpayees(): void
+    {
+        $this->expectException(RegleMetierException::class);
+        $this->expectExceptionMessage('Emprunt refusé : vous avez des pénalités impayées à régler.');
+
+        $this->service(penalitesDues: '15.00')->emprunter($this->adherent(), $this->exemplaire());
     }
 }

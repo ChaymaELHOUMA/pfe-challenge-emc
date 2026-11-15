@@ -262,4 +262,42 @@ class StatistiquesRepositoryTest extends KernelTestCase
 
         $this->assertSame(2, $this->repo->nbReservationsEnAttente());
     }
+
+    public function testTauxRotation(): void
+    {
+        $site = $this->site();
+        $a = $this->adherent();
+        $e = $this->edition($this->oeuvre());
+
+        $x1 = $this->exemplaire($e, $site);
+        $x2 = $this->exemplaire($e, $site);
+
+        $this->pret($a, $x1, new \DateTimeImmutable('+10 days'));
+        $this->pret($a, $x2, new \DateTimeImmutable('+10 days'));
+        $this->em->flush();
+
+        // 2 prets pour 2 exemplaires = taux 1.0
+        $this->assertEquals(1.0, $this->repo->tauxRotation());
+    }
+
+    public function testDocumentsJamaisEmpruntes(): void
+    {
+        $site = $this->site();
+        $a = $this->adherent();
+
+        $e1 = $this->edition($this->oeuvre('Emprunté'));
+        $e2 = $this->edition($this->oeuvre('Jamais emprunté'));
+
+        $x1 = $this->exemplaire($e1, $site);
+        $x2 = $this->exemplaire($e2, $site);
+
+        // Seul e1 a un pret
+        $this->pret($a, $x1, new \DateTimeImmutable('+10 days'));
+        $this->em->flush();
+
+        $jamais = $this->repo->documentsJamaisEmpruntes();
+
+        $this->assertCount(1, $jamais);
+        $this->assertStringContainsString('Jamais emprunté', $jamais[0]['titre']);
+    }
 }

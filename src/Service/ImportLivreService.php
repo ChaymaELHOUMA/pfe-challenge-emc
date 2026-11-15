@@ -49,7 +49,8 @@ class ImportLivreService
             $edition->setEditeur($donnees['editeur'])
                 ->setAnnee($donnees['annee'])
                 ->setLangue($donnees['langue'])
-                ->setSupport($donnees['support']);
+                ->setSupport($donnees['support'])
+                ->setCouvertureUrl($donnees['couverture'] ?? null);
         } else {
             $oeuvre = $this->oeuvreRepository->findOneBy(['titre' => $donnees['titre']]);
             if ($oeuvre === null) {
@@ -65,6 +66,7 @@ class ImportLivreService
                 ->setAnnee($donnees['annee'])
                 ->setLangue($donnees['langue'])
                 ->setSupport($donnees['support'])
+                ->setCouvertureUrl($donnees['couverture'] ?? null)
                 ->setOeuvre($oeuvre);
             $oeuvre->addEdition($edition);
             $this->em->persist($edition);

@@ -32,7 +32,7 @@ class CatalogueFixtures extends Fixture
             $sites[] = $site;
         }
 
-        // catalogue data
+        // catalogue data (les 30 premiers restent strictement inchangés pour préserver les références)
         $catalogue = [
             ['Le Petit Prince', 'livre', 'Saint-Exupéry', 'Antoine'],
             ["L'Étranger", 'livre', 'Camus', 'Albert'],
@@ -64,6 +64,81 @@ class CatalogueFixtures extends Fixture
             ['Le Fabuleux Destin d\'Amélie Poulain', 'dvd', 'Jeunet', 'Jean-Pierre'],
             ['La Haine', 'dvd', 'Kassovitz', 'Mathieu'],
             ['Intouchables', 'dvd', 'Nakache', 'Olivier'],
+
+            // --- Littérature marocaine et maghrébine ---
+            ['La Nuit sacrée', 'livre', 'Ben Jelloun', 'Tahar'],
+            ["L'Enfant de sable", 'livre', 'Ben Jelloun', 'Tahar'],
+            ['Le Passé simple', 'livre', 'Chraïbi', 'Driss'],
+            ['Chanson douce', 'livre', 'Slimani', 'Leïla'],
+            ["Dans le jardin de l'ogre", 'livre', 'Slimani', 'Leïla'],
+            ['Nedjma', 'livre', 'Yacine', 'Kateb'],
+
+            // --- Littérature mondiale et classiques enrichis ---
+            ['Don Quichotte', 'livre', 'Cervantès', 'Miguel de', [['traducteur', 'Viardot', 'Louis']]],
+            ["L'Odyssée", 'livre', 'Homère', null, [['traducteur', 'Bérard', 'Victor']]],
+            ["L'Iliade", 'livre', 'Homère', null, [['traducteur', 'Mazon', 'Paul']]],
+            ['Le Procès', 'livre', 'Kafka', 'Franz', [['traducteur', 'Vialatte', 'Alexandre']]],
+            ['La Métamorphose', 'livre', 'Kafka', 'Franz', [['traducteur', 'Vialatte', 'Alexandre']]],
+            ['Cent ans de solitude', 'livre', 'García Márquez', 'Gabriel', [['traducteur', 'Durand', 'Claude']]],
+            ['Le Vieil Homme et la Mer', 'livre', 'Hemingway', 'Ernest', [['traducteur', 'Dutourd', 'Jean']]],
+            ['Gatsby le Magnifique', 'livre', 'Fitzgerald', 'F. Scott', [['traducteur', 'Brieux', 'Victor']]],
+            ['Sur la route', 'livre', 'Kerouac', 'Jack'],
+            ['Le Nom de la rose', 'livre', 'Eco', 'Umberto', [['traducteur', 'Bouzaher', 'Jean-Noël']]],
+            ["L'Insoutenable Légèreté de l'être", 'livre', 'Kundera', 'Milan'],
+            ['En attendant Godot', 'livre', 'Beckett', 'Samuel'],
+            ['Huis clos', 'livre', 'Sartre', 'Jean-Paul'],
+            ['La Nausée', 'livre', 'Sartre', 'Jean-Paul'],
+            ['Le Deuxième Sexe', 'livre', 'Beauvoir', 'Simone de'],
+            ['La Gloire de mon père', 'livre', 'Pagnol', 'Marcel'],
+            ['Le Château de ma mère', 'livre', 'Pagnol', 'Marcel'],
+            ["L'Écume des jours", 'livre', 'Vian', 'Boris'],
+            ['Paroles', 'livre', 'Prévert', 'Jacques'],
+            ['Alcools', 'livre', 'Apollinaire', 'Guillaume'],
+            ['Voyage au bout de la nuit', 'livre', 'Céline', 'Louis-Ferdinand'],
+            ['La Condition humaine', 'livre', 'Malraux', 'André'],
+            ['Le Grand Meaulnes', 'livre', 'Alain-Fournier', null],
+            ['Dune', 'livre', 'Herbert', 'Frank', [['traducteur', 'Démuth', 'Michel']]],
+            ['Fondation', 'livre', 'Asimov', 'Isaac', [['traducteur', 'Rosenthal', 'Jean']]],
+            ['Les Robots', 'livre', 'Asimov', 'Isaac'],
+            ['Neuromancien', 'livre', 'Gibson', 'William'],
+            ['Ubik', 'livre', 'Dick', 'Philip K.'],
+            ['Chroniques martiennes', 'livre', 'Bradbury', 'Ray'],
+            ['Shining', 'livre', 'King', 'Stephen'],
+            ['Le Seigneur des anneaux', 'livre', 'Tolkien', 'J.R.R.', [['traducteur', 'Ledoux', 'Francis']]],
+            ['Le Hobbit', 'livre', 'Tolkien', 'J.R.R.', [['traducteur', 'Ledoux', 'Francis']]],
+            ['Harry Potter à l’école des sorciers', 'livre', 'Rowling', 'J.K.', [['traducteur', 'Ménard', 'Jean-François']]],
+            ['Harry Potter et la Chambre des secrets', 'livre', 'Rowling', 'J.K.', [['traducteur', 'Ménard', 'Jean-François']]],
+
+            // --- Bandes dessinées & Mangas ---
+            ['Blacksad : Quelque part entre les ombres', 'bd', 'Canales', 'Juan Díaz', [['illustrateur', 'Guarnido', 'Juanjo']]],
+            ['Largo Winch : L’Héritier', 'bd', 'Van Hamme', 'Jean', [['illustrateur', 'Francq', 'Philippe']]],
+            ['XIII : Le Jour du soleil noir', 'bd', 'Van Hamme', 'Jean', [['illustrateur', 'Vance', 'William']]],
+            ['Thorgal : La Magicienne trahie', 'bd', 'Van Hamme', 'Jean', [['illustrateur', 'Rosiński', 'Grzegorz']]],
+            ['Les Passagers du vent', 'bd', 'Bourgeon', 'François'],
+            ['Gaston Lagaffe : Gare aux gaffes', 'bd', 'Franquin', 'André'],
+            ['Lucky Luke : La Diligence', 'bd', 'Goscinny', 'René', [['illustrateur', 'Morris', null]]],
+            ['Blake et Mortimer : Le Secret de l’Espadon', 'bd', 'Jacobs', 'Edgar P.'],
+            ['Corto Maltese : La Ballade de la mer salée', 'bd', 'Pratt', 'Hugo'],
+            ['Le Chat du rabbin', 'bd', 'Sfar', 'Joann'],
+            ['One Piece - Tome 1', 'bd', 'Oda', 'Eiichiro'],
+            ['Naruto - Tome 1', 'bd', 'Kishimoto', 'Masashi'],
+            ['Death Note - Tome 1', 'bd', 'Ohba', 'Tsugumi', [['illustrateur', 'Obata', 'Takeshi']]],
+            ['L’Attaque des Titans - Tome 1', 'bd', 'Isayama', 'Hajime'],
+            ['Dragon Ball - Tome 1', 'bd', 'Toriyama', 'Akira'],
+            ['Akira - Tome 1', 'bd', 'Otomo', 'Katsuhiro'],
+            ['Monster - Tome 1', 'bd', 'Urasawa', 'Naoki'],
+
+            // --- DVD & Cinéma ---
+            ['Cinema Paradiso', 'dvd', 'Tornatore', 'Giuseppe'],
+            ['Le Voyage de Chihiro', 'dvd', 'Miyazaki', 'Hayao'],
+            ['Mon Voisin Totoro', 'dvd', 'Miyazaki', 'Hayao'],
+            ['Princesse Mononoké', 'dvd', 'Miyazaki', 'Hayao'],
+            ['Parasite', 'dvd', 'Bong', 'Joon-ho'],
+            ['Pulp Fiction', 'dvd', 'Tarantino', 'Quentin'],
+            ['Inception', 'dvd', 'Nolan', 'Christopher'],
+            ['Interstellar', 'dvd', 'Nolan', 'Christopher'],
+            ['La Cité de la peur', 'dvd', 'Berbérian', 'Alain'],
+            ['Les Tontons flingueurs', 'dvd', 'Lautner', 'Georges'],
         ];
 
         $numEdition = 0;
@@ -99,7 +174,8 @@ class CatalogueFixtures extends Fixture
                     ->setEditeur($editeur)
                     ->setAnnee($annee)
                     ->setLangue('fr')
-                    ->setSupport($type === 'dvd' ? 'dvd' : 'papier');
+                    ->setSupport($type === 'dvd' ? 'dvd' : 'papier')
+                    ->setCouvertureUrl(sprintf('https://covers.openlibrary.org/b/id/%d-M.jpg', 8000000 + $numEdition * 37));
                 $manager->persist($edition);
                 $this->addReference('edition_' . $numEdition, $edition);
 

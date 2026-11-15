@@ -111,4 +111,22 @@ class OpenLibraryClientTest extends TestCase
         $this->expectExceptionMessage('erreur HTTP 500');
         $client->getLivreParIsbn('9782070360024');
     }
+
+    public function testCouvertureEstRecuperee(): void
+    {
+        $bookJson = json_encode([
+            'title' => 'Livre avec couverture',
+            'covers' => [12345, 67890],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockClient = new MockHttpClient([
+            new MockResponse($bookJson, ['http_code' => 200]),
+        ]);
+
+        $client = new OpenLibraryClient($mockClient);
+        $livre = $client->getLivreParIsbn('9782070360024');
+
+        $this->assertNotNull($livre);
+        $this->assertSame('https://covers.openlibrary.org/b/id/12345-M.jpg', $livre['couverture']);
+    }
 }

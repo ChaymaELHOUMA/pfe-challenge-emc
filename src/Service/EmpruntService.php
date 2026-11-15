@@ -7,6 +7,7 @@ use App\Entity\Exemplaire;
 use App\Entity\Pret;
 use App\Entity\Reservation;
 use App\Exception\RegleMetierException;
+use App\Repository\PenaliteRepository;
 use App\Repository\PretRepository;
 use App\Repository\ReservationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -19,6 +20,7 @@ class EmpruntService
         private PretRepository $prets,
         private ReservationRepository $reservations,
         private ClockInterface $clock,
+        private ?PenaliteRepository $penalites = null,
     ) {
     }
 
@@ -31,6 +33,14 @@ class EmpruntService
 
         $formule = $adherent->getFormuleActive($now)
             ?? throw new RegleMetierException("L'adhérent n'a pas d'abonnement en cours.");
+
+        if ($this->prets->countEnRetardPourAdherent($adherent, $now) > 0) {
+            throw new RegleMetierException('Emprunt refusé : vous avez des prêts en retard non restitués.');
+        }
+
+        if ($this->penalites !== null && (float) $this->penalites->totalDuesPourAdherent($adherent) > 0) {
+            throw new RegleMetierException('Emprunt refusé : vous avez des pénalités impayées à régler.');
+        }
 
         $reservationARetirer = $this->verifierDisponibilite($adherent, $exemplaire, $now);
 

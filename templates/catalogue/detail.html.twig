@@ -11,17 +11,22 @@
 
 <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; border-bottom: 1px solid #f1f5f9; padding-bottom: 16px;">
-        <div>
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                <span class="badge badge-neutral">{{ edition.oeuvre.typeOeuvre|upper }}</span>
-                <span class="badge badge-neutral">{{ edition.support|upper }}</span>
-                {% if nbDisponibles > 0 %}
-                    <span class="badge badge-success">{{ nbDisponibles }} disponible(s) / {{ edition.exemplaires|length }}</span>
-                {% else %}
-                    <span class="badge badge-warning">Non disponible actuellement</span>
-                {% endif %}
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+            {% if edition.couvertureUrl %}
+                <img src="{{ edition.couvertureUrl }}" alt="Couverture de {{ edition.oeuvre.titre }}" style="max-height: 120px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); object-fit: contain;">
+            {% endif %}
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                    <span class="badge badge-neutral">{{ edition.oeuvre.typeOeuvre|upper }}</span>
+                    <span class="badge badge-neutral">{{ edition.support|upper }}</span>
+                    {% if nbDisponibles > 0 %}
+                        <span class="badge badge-success">{{ nbDisponibles }} disponible(s) / {{ edition.exemplaires|length }}</span>
+                    {% else %}
+                        <span class="badge badge-warning">Non disponible actuellement</span>
+                    {% endif %}
+                </div>
+                <h1 style="font-size: 26px; margin: 0; color: #0f172a;">{{ edition.oeuvre.titre }}</h1>
             </div>
-            <h1 style="font-size: 26px; margin: 0; color: #0f172a;">{{ edition.oeuvre.titre }}</h1>
         </div>
 
         <div>

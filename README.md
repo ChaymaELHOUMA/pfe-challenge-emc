@@ -1,6 +1,6 @@
 # Réseau de Médiathèques — PFE Challenge
 
-[![Tests](https://img.shields.io/badge/PHPUnit-135%20tests%20%7C%20378%20assertions-success.svg)](tests/)
+[![Tests](https://img.shields.io/badge/PHPUnit-140%20tests%20%7C%20387%20assertions-success.svg)](tests/)
 [![Symfony](https://img.shields.io/badge/Symfony-7.4-blue.svg)](https://symfony.com)
 [![PHP](https://img.shields.io/badge/PHP-8.3%2B-purple.svg)](https://www.php.net)
 [![Database](https://img.shields.io/badge/MySQL-8.0-orange.svg)](https://www.mysql.com)
@@ -126,21 +126,21 @@ Le projet intègre une suite de tests automatisés couvrant les tests unitaires 
 php bin/phpunit
 ```
 
-### Synthèse des tests (135 tests, 378 assertions, 100% vert) :
+### Synthèse des tests (140 tests, 387 assertions, 100% vert) :
 * **Tests de Services Métier :**
-  * `EmpruntServiceTest` : 14 tests (droits d'emprunt, formules, quotas, vérification de non-persistance en cas d'échec)
+  * `EmpruntServiceTest` : 16 tests (droits d'emprunt, formules, quotas, blocage retard/pénalités, vérification de non-persistance)
   * `RetourServiceTest` : 11 tests (pénalités de retard, affectation automatique au premier réservataire)
   * `ReservationServiceTest` : 16 tests (file FIFO, quotas, règle locale vs distant, annulation d'attente vs mise de côté)
   * `MiseDeCoteServiceTest` : 12 tests (délai de 5 jours, expiration, libération de document, transfert au suivant)
   * `ProlongationServiceTest` : 7 tests (conditionnement retard, quotas formule, présence de réservation)
   * `PenaliteServiceTest` : 7 tests (forfaits perte 25 MAD, dégradation 5 MAD, calcul retard)
   * `IsbnNormalizerTest` : 8 tests (conversion ISBN-10 vers 13, gestion clé 'X', contrôle modulo 10/11)
-  * `OpenLibraryClientTest` : 5 tests (MockHttpClient, 404, données partielles, gestion d'erreurs réseau)
+  * `OpenLibraryClientTest` : 6 tests (MockHttpClient, 404, données partielles, récupération couverture, erreurs réseau)
   * `ImportLivreServiceTest` : 4 tests (idempotence sans doublon, création complète de l'arbre d'entités)
   * `ImportLotServiceTest` : 5 tests (création d'exemplaires rattachés, continuité sur erreur, dry-run sans persistance)
 * **Tests de Repositories SQL / DBAL :**
   * `ReservationRepositoryTest` : 7 tests (ordre chronologique et par ID, calcul de position `#1`, `#2`)
-  * `StatistiquesRepositoryTest` : 7 tests (agrégats, compteurs de prêts en retard, top 10, total pénalités)
+  * `StatistiquesRepositoryTest` : 9 tests (taux de rotation, documents jamais empruntés, retards, top 10, total pénalités)
 * **Tests de Contrôleurs Web (WebTestCase) :**
   * `SecurityControllerTest` : 6 tests (redirection anonyme, isolation `/admin`, isolation `/mon-espace`, throttling)
   * `CatalogueControllerTest` : 10 tests (recherche globale, filtres combinés, pagination, réservation connectée)

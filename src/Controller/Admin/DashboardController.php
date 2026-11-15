@@ -31,6 +31,8 @@ class DashboardController extends AbstractDashboardController
                 'pretsEnCoursBySite'           => $this->stats->pretsEnCoursBySite(),
                 'topDixDocuments'              => $this->stats->topDixDocuments(),
                 'reservationsEnAttenteByEdition' => $this->stats->reservationsEnAttenteByEdition(),
+                'tauxRotation'                 => $this->stats->tauxRotation(),
+                'documentsJamaisEmpruntes'     => $this->stats->documentsJamaisEmpruntes(),
             ],
         ]);
     }
@@ -38,12 +40,20 @@ class DashboardController extends AbstractDashboardController
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
-            ->setTitle('Pfe Challenge Emc');
+            ->setTitle('Médiathèques EMC');
     }
 
     public function configureMenuItems(): iterable
     {
-        yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
+        yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-home');
+
+        // Catalogue section
+        yield MenuItem::section('Catalogue');
+        yield MenuItem::linkTo(OeuvreCrudController::class, 'Œuvres', 'fa fa-book');
+        yield MenuItem::linkTo(EditionCrudController::class, 'Éditions', 'fa fa-bookmark');
+        yield MenuItem::linkTo(ExemplaireCrudController::class, 'Exemplaires', 'fa fa-barcode');
+        yield MenuItem::linkTo(PersonneCrudController::class, 'Auteurs & Contributeurs', 'fa fa-pen-nib');
+        yield MenuItem::linkTo(SiteCrudController::class, 'Sites / Médiathèques', 'fa fa-building-columns');
 
         // Adhérents section
         yield MenuItem::section('Adhérents');
@@ -54,7 +64,7 @@ class DashboardController extends AbstractDashboardController
         // Circulation section
         yield MenuItem::section('Circulation');
         yield MenuItem::linkTo(PretCrudController::class, 'Prêts', 'fa fa-right-left');
-        yield MenuItem::linkTo(ReservationCrudController::class, 'Réservations', 'fa fa-bookmark');
+        yield MenuItem::linkTo(ReservationCrudController::class, 'Réservations', 'fa fa-clock');
         yield MenuItem::linkTo(PenaliteCrudController::class, 'Pénalités', 'fa fa-coins');
     }
 }

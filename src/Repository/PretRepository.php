@@ -27,6 +27,19 @@ class PretRepository extends ServiceEntityRepository
             ->getSingleScalarResult();
     }
 
+    public function countEnRetardPourAdherent(Adherent $adherent, \DateTimeImmutable $now): int
+    {
+        return (int) $this->createQueryBuilder('p')
+            ->select('COUNT(p.id)')
+            ->andWhere('p.adherent = :a')
+            ->andWhere('p.dateRetour IS NULL')
+            ->andWhere('p.dateEcheance < :now')
+            ->setParameter('a', $adherent)
+            ->setParameter('now', $now)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
     /** Trouve le prêt en cours pour un exemplaire donné. */
     public function findEnCoursPourExemplaire(Exemplaire $exemplaire): ?Pret
     {
